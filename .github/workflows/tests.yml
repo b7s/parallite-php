@@ -20,8 +20,9 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: sockets
-          coverage: none
+          extensions: sockets, xdebug
+          coverage: xdebug
+          ini-values: xdebug.mode=coverage
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist
