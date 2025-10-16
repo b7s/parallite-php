@@ -1,7 +1,7 @@
 {
     "name": "parallite/parallite-php",
     "description": "Standalone PHP client for Parallite - Execute PHP closures in true parallel",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "type": "library",
     "keywords": ["parallel", "php", "go", "laravel", "async", "concurrency", "parallite", "closure", "multiprocessing"],
     "license": "MIT",
