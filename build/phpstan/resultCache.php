@@ -1,7 +1,7 @@
 <?php declare(strict_types = 1);
 
 return [
-	'lastFullAnalysisTime' => 1760629576,
+	'lastFullAnalysisTime' => 1760633872,
 	'meta' => array (
   'cacheVersion' => 'v12-linesToIgnore',
   'phpstanVersion' => '2.1.31',
@@ -19,7 +19,7 @@ return [
   ),
   'composerLocks' => 
   array (
-    '/mnt/develop/underpixels/parallite/parallite-php/composer.lock' => '0eb0c3f57e4328ec6506e5b9640ca4724f02fe9f',
+    '/mnt/develop/underpixels/parallite/parallite-php/composer.lock' => 'a7cdc5c142aeacee70f6302333c9c94cbbbd7a33',
   ),
   'composerInstalled' => 
   array (
