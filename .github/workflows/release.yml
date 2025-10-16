@@ -23,7 +23,7 @@ jobs:
           extensions: sockets, zip
 
       - name: Install Dependencies
-        run: composer install --no-interaction --prefer-dist --no-dev
+        run: composer install --no-interaction --prefer-dist
 
       - name: Run Tests
         run: composer test
