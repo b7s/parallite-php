@@ -1,4 +1,4 @@
-.PHONY: help install test test-unit test-types test-coverage
+.PHONY: help install test test-unit test-types test-coverage release
 
 # Default target
 help:
@@ -8,6 +8,7 @@ help:
 	@echo "  make test-unit       - Run unit tests only"
 	@echo "  make test-types      - Run PHPStan static analysis"
 	@echo "  make test-coverage   - Run tests with coverage report"
+	@echo "  make release VERSION=x.y.z - Run tests and tag release"
 	@echo "  make clean           - Clean cache and temporary files"
 
 # Install dependencies
@@ -40,6 +41,21 @@ test-type-coverage:
 test-coverage:
 	@echo "📊 Running tests with coverage..."
 	composer test:coverage
+
+# Create a tagged release (requires clean working tree)
+release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make release VERSION=x.y.z"; \
+		exit 1; \
+	fi
+	@echo "🔍 Checking working tree..."
+	@git diff --quiet || (echo "Working tree is not clean" && exit 1)
+	@echo "🧪 Running full test suite..."
+	composer test
+	@echo "🏷️ Creating tag v$(VERSION)..."
+	@git tag -a v$(VERSION) -m "Release v$(VERSION)"
+	@echo "🚀 Pushing tag to origin..."
+	@git push origin v$(VERSION)
 
 # Clean cache and temporary files
 clean:

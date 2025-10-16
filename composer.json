@@ -11,9 +11,9 @@
         }
     ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
         "ext-sockets": "*",
-        "opis/closure": "^3.6|^4.0"
+        "opis/closure": "^4.0"
     },
     "require-dev": {
         "pestphp/pest": "^4.0",
