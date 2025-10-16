@@ -10,14 +10,13 @@ declare(strict_types=1);
  * - Data processing pipelines
  * - Error handling strategies
  * - Performance monitoring
+ * 
+ * Uses the global async() and await() functions - no setup required!
  */
 
 require __DIR__.'/../vendor/autoload.php';
 
-use Parallite\ParalliteClient;
-
-// Use automatic daemon management with auto-detected socket path
-$client = new ParalliteClient(autoManageDaemon: true);
+// No imports needed - async() and await() are available globally!
 
 echo "=== Advanced Parallite Examples ===\n\n";
 
@@ -27,23 +26,22 @@ echo "---------------------\n";
 
 $start = microtime(true);
 
-$apiResults = $client->awaitAll([
-    fn() => [
-        'service' => 'users',
-        'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/users/1'), true),
-        'time' => microtime(true)
-    ],
-    fn() => [
-        'service' => 'posts',
-        'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/posts/1'), true),
-        'time' => microtime(true)
-    ],
-    fn() => [
-        'service' => 'comments',
-        'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/comments/1'), true),
-        'time' => microtime(true)
-    ],
+$p1 = async(fn() => [
+    'service' => 'users',
+    'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/users/1'), true),
 ]);
+
+$p2 = async(fn() => [
+    'service' => 'posts',
+    'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/posts/1'), true),
+]);
+
+$p3 = async(fn() => [
+    'service' => 'comments',
+    'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/comments/1'), true),
+]);
+
+$apiResults = [await($p1), await($p2), await($p3)];
 
 $duration = round(microtime(true) - $start, 2);
 
@@ -63,16 +61,16 @@ $chunks = array_chunk($data, $chunkSize);
 
 $start = microtime(true);
 
-$closures = [];
+$promises = [];
 foreach ($chunks as $chunk) {
-    $closures[] = function () use ($chunk) {
+    $promises[] = async(function () use ($chunk) {
         // Simulate heavy processing
         usleep(100000); // 100ms
         return array_map(fn($n) => $n * $n, $chunk);
-    };
+    });
 }
 
-$processedChunks = $client->awaitAll($closures);
+$processedChunks = array_map(fn($p) => await($p), $promises);
 
 $duration = round(microtime(true) - $start, 2);
 
@@ -82,55 +80,32 @@ echo "   Processed " . count($data) . " items in " . count($chunks) . " chunks\n
 echo "   Duration: {$duration}s\n";
 echo "   Results: " . implode(', ', array_slice($allResults, 0, 10)) . "...\n\n";
 
-// Example 3: Error Handling with Retry
-echo "3. Error Handling with Retry\n";
-echo "-----------------------------\n";
+// Example 3: Error Handling with catch()
+echo "3. Error Handling with catch()\n";
+echo "-------------------------------\n";
 
-function executeWithRetry(ParalliteClient $client, Closure $task, int $maxRetries = 3): mixed
-{
-    $attempt = 0;
-    
-    while ($attempt < $maxRetries) {
-        try {
-            $future = $client->async($task);
-            return $client->await($future);
-        } catch (RuntimeException $e) {
-            $attempt++;
-            if ($attempt >= $maxRetries) {
-                throw $e;
-            }
-            echo "   Retry attempt {$attempt}/{$maxRetries}...\n";
-            usleep(100000); // Wait 100ms before retry
-        }
-    }
-    
-    throw new RuntimeException('Max retries exceeded');
-}
-
-try {
-    $result = executeWithRetry($client, function () {
+$result = await(
+    async(function () {
         // Simulate flaky operation
         if (rand(1, 3) === 1) {
             return 'Success!';
         }
         throw new RuntimeException('Simulated failure');
-    });
-    
-    echo "   ✓ Task completed: {$result}\n\n";
-} catch (RuntimeException $e) {
-    echo "   ✗ Task failed after retries: {$e->getMessage()}\n\n";
-}
+    })->catch(fn($e) => 'Recovered from: ' . $e->getMessage())
+);
+
+echo "   Result: {$result}\n\n";
 
 // Example 4: Progress Monitoring
 echo "4. Progress Monitoring\n";
 echo "-----------------------\n";
 
-$tasks = range(1, 10);
-$futures = [];
+$tasks = range(1, 15);
+$promises = [];
 
 echo "   Submitting tasks: ";
 foreach ($tasks as $i) {
-    $futures[] = $client->async(function () use ($i) {
+    $promises[] = async(function () use ($i) {
         usleep(rand(100000, 500000)); // Random delay 100-500ms
         return "Task {$i} completed";
     });
@@ -140,35 +115,34 @@ echo " Done!\n";
 
 echo "   Collecting results: ";
 $results = [];
-foreach ($futures as $i => $future) {
-    $results[] = $client->await($future);
+foreach ($promises as $promise) {
+    $results[] = await($promise);
     echo ".";
 }
 echo " Done!\n";
 
 echo "   Completed " . count($results) . " tasks\n\n";
 
-// Example 5: Parallel File Processing
-echo "5. Parallel File Processing\n";
-echo "----------------------------\n";
+// Example 5: Parallel File Processing with then()
+echo "5. Parallel File Processing with then()\n";
+echo "----------------------------------------\n";
 
 $files = ['file1.txt', 'file2.txt', 'file3.txt'];
 
-$fileClosures = [];
+$filePromises = [];
 foreach ($files as $file) {
-    $fileClosures[] = function () use ($file) {
+    $filePromises[] = async(function () use ($file) {
         // Simulate file processing
         usleep(200000); // 200ms
         return [
             'file' => $file,
             'size' => rand(1000, 10000),
             'lines' => rand(10, 100),
-            'processed' => true
         ];
-    };
+    })->then(fn($data) => array_merge($data, ['processed' => true]));
 }
 
-$fileResults = $client->awaitAll($fileClosures);
+$fileResults = array_map(fn($p) => await($p), $filePromises);
 
 echo "   Processed " . count($fileResults) . " files:\n";
 foreach ($fileResults as $result) {

@@ -14,7 +14,8 @@
 ## ✨ Features
 
 - 🚀 **True Parallel Execution** - Execute multiple PHP closures simultaneously
-- 🔄 **Simple async/await API** - Familiar Promise-like interface
+- 🔄 **Promise Chaining** - Chainable `then()`, `catch()`, and `finally()` methods
+- 🎯 **Simple async/await API** - Familiar Promise-like interface
 - 🌍 **Cross-platform** - Works on Windows, Linux and macOS
 - ⚡ **Zero Configuration** - Works out of the box
 - 🎯 **Automatic Daemon Management** - Optional auto-start/stop of Parallite daemon
@@ -25,7 +26,7 @@
 
 ## 📋 Requirements
 
-- PHP 8.2 or higher
+- PHP 8.3 or higher
 - ext-sockets
 - Composer 2+
 
@@ -56,212 +57,173 @@ composer parallite:install -- --force
 
 ## 🚀 Quick Start
 
-### Option 1: Manual Daemon Management
-
-Start the daemon manually and connect to it:
-
-**Linux/macOS:**
-```bash
-# Terminal 1: Start daemon
-./vendor/bin/parallite --socket=/tmp/parallite.sock
-```
-
-**Windows:**
-```cmd
-# Terminal 1: Start daemon
-vendor\bin\parallite.exe --socket=\\.\pipe\parallite
-```
+Just use the `async()` and `await()` functions - no setup or imports required!
 
 ```php
 <?php
 
 require 'vendor/autoload.php';
 
-use Parallite\ParalliteClient;
+// No imports needed - functions are available globally!
 
-// Unix/Linux/macOS
-$client = new ParalliteClient('/tmp/parallite.sock');
+// Basic usage
+$result = await(async(fn() => 'Hello World'));
+echo $result; // Hello World
 
-// Windows
-$client = new ParalliteClient('\\\\.\\pipe\\parallite');
-
-// Or use default (auto-detects platform)
-$client = new ParalliteClient(); 
-
-// Submit tasks
-$future1 = $client->async(fn() => sleep(1) && 'Task 1');
-$future2 = $client->async(fn() => sleep(2) && 'Task 2');
-$future3 = $client->async(fn() => sleep(3) && 'Task 3');
-
-// Await results
-echo $client->await($future1) . "\n"; // Task 1
-echo $client->await($future2) . "\n"; // Task 2
-echo $client->await($future3) . "\n"; // Task 3
-
-// Total time: ~3s (parallel) instead of 6s (sequential)
-```
-
-### Option 2: Automatic Daemon Management
-
-Let the client manage the daemon lifecycle:
-
-```php
-<?php
-
-require 'vendor/autoload.php';
-
-use Parallite\ParalliteClient;
-
-// Client automatically starts and stops the daemon
-$client = new ParalliteClient(
-    '/tmp/parallite.sock',
-    autoManageDaemon: true
+// With promise chaining
+$result = await(
+    async(fn() => 1 + 2)
+        ->then(fn($n) => $n * 2)
+        ->then(fn($n) => $n + 5)
 );
+echo $result; // 11
 
-$future = $client->async(fn() => 'Hello from parallel task!');
-$result = $client->await($future);
+// Parallel execution
+$p1 = async(fn() => sleep(1) && 'Task 1');
+$p2 = async(fn() => sleep(1) && 'Task 2');
+$p3 = async(fn() => sleep(1) && 'Task 3');
 
-echo $result; // Hello from parallel task!
+echo await($p1) . "\n"; // Task 1
+echo await($p2) . "\n"; // Task 2
+echo await($p3) . "\n"; // Task 3
+// Total time: ~1s (parallel) instead of 3s (sequential)
 
-// Daemon is automatically stopped when script ends
+// Error handling
+$result = await(
+    async(function () {
+        throw new Exception('Oops!');
+    })->catch(fn($e) => 'Caught: ' . $e->getMessage())
+);
+echo $result; // Caught: Task failed: Oops!
 ```
+
+**That's it!** The daemon is automatically managed - no manual setup or imports needed!
 
 ## 📚 Usage Examples
 
-### Basic Parallel Execution
+### Basic Promise Chaining
 
 ```php
-use Parallite\ParalliteClient;
-
-$client = new ParalliteClient('/tmp/parallite.sock');
-
-// Submit multiple tasks
-$futures = [
-    $client->async(fn() => heavyComputation1()),
-    $client->async(fn() => heavyComputation2()),
-    $client->async(fn() => heavyComputation3()),
-];
-
-// Collect results
-$results = array_map(
-    fn($future) => $client->await($future),
-    $futures
+// Simple chaining
+$result = await(
+    async(fn() => 1 + 2)
+        ->then(fn($n) => $n * 2)
+        ->then(fn($n) => $n + 5)
 );
-```
-
-### Using `awaitAll()` Convenience Method
-
-```php
-$client = new ParalliteClient('/tmp/parallite.sock');
-
-$results = $client->awaitAll([
-    fn() => fetchUser(1),
-    fn() => fetchPosts(1),
-    fn() => fetchComments(1),
-]);
-
-[$user, $posts, $comments] = $results;
-```
-
-### Working with Data
-
-```php
-$client = new ParalliteClient('/tmp/parallite.sock');
-
-$numbers = range(1, 10);
-$futures = [];
-
-foreach ($numbers as $n) {
-    $futures[] = $client->async(fn() => $n * $n);
-}
-
-$squares = [];
-foreach ($futures as $future) {
-    $squares[] = $client->await($future);
-}
-
-print_r($squares); // [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+echo $result; // 11
 ```
 
 ### Error Handling
 
 ```php
-$client = new ParalliteClient('/tmp/parallite.sock');
+$result = await(
+    async(function () {
+        throw new Exception('Error');
+    })->catch(fn(Throwable $e) => 'Rescued: ' . $e->getMessage())
+);
 
-try {
-    $future = $client->async(function () {
-        throw new RuntimeException('Something went wrong!');
-    });
-    
-    $client->await($future);
-} catch (RuntimeException $e) {
-    echo "Error: {$e->getMessage()}";
+echo $result; // "Rescued: Task failed: Error"
+```
+
+### Using Finally
+
+```php
+$result = await(
+    async(fn() => 'success')
+        ->then(fn($r) => strtoupper($r))
+        ->finally(fn() => echo "Cleanup!\n")
+);
+
+echo $result; // Prints "Cleanup!" then "SUCCESS"
+```
+
+### Parallel Execution
+
+```php
+$start = microtime(true);
+
+// Create multiple promises
+$p1 = async(fn() => sleep(1) && 'Task 1');
+$p2 = async(fn() => sleep(1) && 'Task 2');
+$p3 = async(fn() => sleep(1) && 'Task 3');
+
+// Option 1: Await individually
+$results = [await($p1), await($p2), await($p3)];
+
+// Option 2: Await array of promises (cleaner)
+$results = await([$p1, $p2, $p3]);
+
+$duration = microtime(true) - $start;
+// Duration: ~1s (parallel) instead of 3s (sequential)
+```
+
+### Working with Data
+
+```php
+$numbers = range(1, 10);
+$promises = [];
+
+foreach ($numbers as $n) {
+    $promises[] = async(fn() => $n * $n);
 }
+
+// Option 1: Using array_map
+$squares = array_map(fn($p) => await($p), $promises);
+
+// Option 2: Using await with array (simpler)
+$squares = await($promises);
+
+print_r($squares); // [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
 ```
 
 ### Real-World Example: Parallel API Calls
 
 ```php
-use Parallite\ParalliteClient;
-
-$client = new ParalliteClient('/tmp/parallite.sock', autoManageDaemon: true);
-
 $start = microtime(true);
 
 // Fetch data from multiple APIs in parallel
-$results = $client->awaitAll([
-    fn() => file_get_contents('https://api.example.com/users'),
-    fn() => file_get_contents('https://api.example.com/posts'),
-    fn() => file_get_contents('https://api.example.com/comments'),
-]);
+$promises = [
+    'users' => async(fn() => file_get_contents('https://api.example.com/users')),
+    'posts' => async(fn() => file_get_contents('https://api.example.com/posts')),
+    'comments' => async(fn() => file_get_contents('https://api.example.com/comments')),
+];
+
+// Await all at once
+$data = await($promises);
 
 $duration = microtime(true) - $start;
-
 echo "Fetched 3 APIs in {$duration}s (would be 3x slower if sequential)\n";
+
+// Access results
+$users = $data['users'];
+$posts = $data['posts'];
+$comments = $data['comments'];
 ```
 
-## 🔌 Socket Paths
+### Complex Data Transformation
 
-Parallite uses different socket types depending on the platform:
-
-| Platform | Socket Type | Example Path |
-|----------|-------------|--------------|
-| **Linux** | Unix Socket | `/tmp/parallite.sock` |
-| **macOS** | Unix Socket | `/tmp/parallite.sock` |
-| **Windows** | Named Pipe | `\\\\.\\pipe\\parallite` |
-
-### Platform-Specific Examples
-
-**Linux/macOS:**
 ```php
-$client = new ParalliteClient('/tmp/parallite.sock');
-```
+$result = await(
+    async(fn() => ['name' => 'john', 'age' => 25])
+        ->then(fn($data) => array_merge($data, ['name' => strtoupper($data['name'])]))
+        ->then(fn($data) => array_merge($data, ['age' => $data['age'] + 5]))
+        ->then(fn($data) => json_encode($data))
+);
 
-**Windows:**
-```php
-$client = new ParalliteClient('\\\\.\\pipe\\parallite');
-```
-
-**Auto-detect (recommended):**
-```php
-// Uses default path for current platform
-$client = new ParalliteClient();
-```
+echo $result; // {"name":"JOHN","age":30}
 
 ## ⚙️ Configuration
 
-Create a `parallite.json` file in your project root to configure Parallite:
+Create a `parallite.json` file in your project root:
 
 ```json
 {
-  "php_includes": [
-    "config/bootstrap.php",
-    "vendor/autoload.php"
-  ],
+  "php_includes": [],
+  "enable_benchmark": false,
   "go_overrides": {
     "timeout_ms": 30000,
-    "fixed_workers": 3,
-    "prefix_name": "my_worker",
+    "fixed_workers": 0,
+    "prefix_name": "parallite_worker",
     "fail_mode": "continue"
   }
 }
@@ -269,12 +231,13 @@ Create a `parallite.json` file in your project root to configure Parallite:
 
 ### Configuration Options
 
-#### `php_includes`
-Array of PHP files to load in worker processes. Useful for loading configuration, helpers, or dependencies.
+**PHP Settings:**
+- **`php_includes`** (array): PHP files to include in worker processes (e.g., autoloader, bootstrap)
+- **`enable_benchmark`** (bool): Enable benchmark mode globally (default: false)
+  - When `true`, all tasks will include benchmark data unless explicitly disabled
+  - Can be overridden per-task using the `$enableBenchmark` parameter in `async()`
 
-#### `go_overrides`
-Daemon configuration options:
-
+**Go Daemon Settings (`go_overrides`):**
 - **`timeout_ms`** (int): Task timeout in milliseconds (default: 30000)
 - **`fixed_workers`** (int): Number of worker processes (default: 0 = auto)
 - **`prefix_name`** (string): Prefix for worker process names (default: "parallite_worker")
@@ -282,7 +245,287 @@ Daemon configuration options:
 
 ## 🎯 API Reference
 
-### `ParalliteClient`
+### Helper Functions (Recommended)
+
+> **No Imports Required!** The `async()` and `await()` functions are available globally after `require 'vendor/autoload.php';`
+
+#### `async(Closure $closure, ?bool $enableBenchmark = null): Promise`
+
+Create a promise for async execution with automatic daemon management.
+
+```php
+// Use default from parallite.json
+$promise = async(fn() => heavyTask());
+
+// Force enable benchmark for this task
+$promise = async(fn() => heavyTask(), enableBenchmark: true);
+
+// Force disable benchmark for this task
+$promise = async(fn() => heavyTask(), enableBenchmark: false);
+```
+
+**Parameters:**
+- `$closure`: The task to execute asynchronously
+- `$enableBenchmark`: Enable benchmark (null = read from `parallite.json`, true = force enable, false = force disable)
+
+**Priority:** parameter > `parallite.json` > default (false)
+
+**Returns:** `Promise` object with chainable methods
+
+**Features:**
+- Automatic daemon lifecycle management
+- No manual setup required
+- Shared client instance (efficient)
+- Configurable benchmark (global or per-task)
+
+#### `await(Promise|array $promise): mixed`
+
+Await a promise (or array of promises) to resolve and return the result(s).
+
+```php
+// Single promise
+$result = await($promise);
+
+// Array of promises (returns array of results)
+$results = await([$promise1, $promise2, $promise3]);
+
+// Mixed array (promises are resolved, other values pass through)
+$results = await([
+    'static' => 'value',
+    'dynamic' => async(fn() => 'computed'),
+]);
+// ['static' => 'value', 'dynamic' => 'computed']
+```
+
+**Parameters:**
+- `$promise`: Promise object, raw future array, or array containing Promise objects
+
+**Returns:** 
+- Single result if given a single promise
+- Array of results if given an array (promises are resolved, other values pass through)
+
+### `Promise` Class
+
+Promise object with chainable methods for async operations.
+
+#### `then(Closure $callback): Promise`
+
+Chain a transformation callback.
+
+```php
+$promise->then(fn($result) => $result * 2);
+```
+
+#### `catch(Closure $callback): Promise`
+
+Handle exceptions.
+
+```php
+$promise->catch(fn(Throwable $e) => 'Error: ' . $e->getMessage());
+```
+
+#### `finally(Closure $callback): Promise`
+
+Execute cleanup code regardless of success/failure.
+
+```php
+$promise->finally(fn() => cleanup());
+```
+
+#### `resolve(): mixed`
+
+Manually resolve the promise.
+
+```php
+$result = $promise->resolve();
+```
+
+#### `getBenchmark(): ?BenchmarkData`
+
+Get benchmark data if benchmark mode was enabled.
+
+```php
+$benchmark = $promise->getBenchmark();
+if ($benchmark) {
+    echo "Execution: {$benchmark->executionTimeMs}ms\n";
+    echo "Memory Δ: {$benchmark->memoryDeltaMb}MB\n";
+    echo "Peak: {$benchmark->memoryPeakMb}MB\n";
+    echo "CPU: {$benchmark->cpuTimeMs}ms\n";
+}
+```
+
+## 📊 Benchmark Mode
+
+Parallite can collect detailed performance metrics for each task when benchmark mode is enabled.
+
+### Enabling Benchmark Mode
+
+**Priority:** Function parameter > `parallite.json` > Default (false)
+
+**Option 1: Global configuration (recommended for development)**
+
+Edit `parallite.json`:
+```json
+{
+  "enable_benchmark": true
+}
+```
+
+All tasks will include benchmark data:
+```php
+$promise = async(fn() => task());  // Benchmark enabled from config
+$result = await($promise);
+$benchmark = $promise->getBenchmark();
+```
+
+**Option 2: Per-task override**
+
+```php
+// Force enable for specific task (overrides config)
+$promise = async(fn() => heavyTask(), enableBenchmark: true);
+
+// Force disable for specific task (overrides config)
+$promise = async(fn() => lightTask(), enableBenchmark: false);
+
+// Use config default
+$promise = async(fn() => normalTask());  // null = read from parallite.json
+```
+
+**Option 3: Using ParalliteClient directly**
+
+```php
+use Parallite\ParalliteClient;
+
+// Enable globally in constructor
+$client = new ParalliteClient(
+    autoManageDaemon: true,
+    enableBenchmark: true
+);
+
+// Or enable after creation
+$client = new ParalliteClient();
+$client->enableBenchmark();
+```
+
+### Benchmark Data Structure
+
+When benchmark mode is enabled, the daemon returns additional performance metrics:
+
+```json
+{
+  "ok": true,
+  "result": "...",
+  "task_id": "...",
+  "benchmark": {
+    "execution_time_ms": 123.456,
+    "memory_delta_mb": 0.5,
+    "memory_peak_mb": 5.0,
+    "cpu_time_ms": 120.8
+  }
+}
+```
+
+**Fields:**
+- `execution_time_ms`: Total execution time in milliseconds (always accurate)
+- `memory_delta_mb`: Memory change during task execution in MB (may be zero for tasks with automatic cleanup)
+- `memory_peak_mb`: Peak memory usage during task in MB (may be zero for small/fast tasks)
+- `cpu_time_ms`: Total CPU time (user + system) in milliseconds (always accurate)
+
+> **Note:** Memory metrics may show zero for tasks where PHP automatically frees memory. See "Understanding Memory Metrics" section for details.
+
+### Accessing Benchmark Data
+
+**Simple per-task benchmark (recommended):**
+
+```php
+// Enable benchmark for specific task
+$promise = async(function() {
+    sleep(1);
+    return 'Heavy task completed';
+}, enableBenchmark: true);
+
+$result = await($promise);
+
+// Get benchmark data
+$benchmark = $promise->getBenchmark();
+if ($benchmark) {
+    echo "Execution time: {$benchmark->executionTimeMs}ms\n";
+    echo "Memory delta: {$benchmark->memoryDeltaMb}MB\n";
+    echo "Memory peak: {$benchmark->memoryPeakMb}MB\n";
+    echo "CPU time: {$benchmark->cpuTimeMs}ms\n";
+    
+    // Or use the formatted string
+    echo $benchmark; // "Execution: 123.45ms | Memory Δ: 0.50MB | Peak: 5.00MB | CPU: 120.80ms"
+}
+```
+
+**Global benchmark mode:**
+
+```php
+use Parallite\ParalliteClient;
+
+$client = new ParalliteClient(enableBenchmark: true);
+
+// All tasks will include benchmark data
+$promise = $client->promise(fn() => heavyTask());
+$result = await($promise);
+
+$benchmark = $promise->getBenchmark();
+if ($benchmark) {
+    echo "Execution: {$benchmark->executionTimeMs}ms\n";
+}
+```
+
+### Example: Performance Benchmark
+
+See `examples/performance-benchmark.php` for a complete example that:
+- Measures execution time, memory usage, and CPU time
+- Tests different workload types (light, CPU-intensive, mixed, stress)
+- Validates parallel execution
+- Provides detailed performance metrics
+
+```bash
+php examples/performance-benchmark.php
+```
+
+**Note:** Benchmark mode adds minimal overhead but should only be enabled when you need performance metrics.
+
+### Understanding Memory Metrics
+
+**Why is `memory_delta_mb` often zero?**
+
+The PHP worker is a **persistent process** that executes multiple tasks in a loop. Memory behavior:
+
+1. **Before task**: Worker is already "warm" with all infrastructure loaded
+2. **During task**: Variables are created in the closure scope
+3. **After task**: PHP automatically frees variables when they go out of scope
+4. **Result**: Memory delta ≈ 0 for most tasks
+
+**Memory metrics reliability:**
+- ✅ `execution_time_ms`: Always accurate
+- ✅ `cpu_time_ms`: Always accurate
+- ⚠️ `memory_delta_mb`: May be zero for tasks that don't retain memory between measurements
+- ⚠️ `memory_peak_mb`: Captures significant peaks, but may be zero for small/fast tasks
+
+**When memory metrics are useful:**
+- Long-running tasks that accumulate data
+- Detecting memory leaks
+- Tasks that explicitly retain large objects
+- Comparing relative memory usage between different implementations
+
+**Example of measurable memory usage:**
+```php
+$promise = async(function() {
+    // This will show memory usage because data is retained until return
+    $largeArray = array_fill(0, 1000000, 'data');
+    sleep(1); // Keep data in memory
+    return count($largeArray);
+}, enableBenchmark: true);
+```
+
+### `ParalliteClient` (Advanced)
+
+For advanced use cases requiring manual control.
 
 #### Constructor
 
@@ -294,68 +537,42 @@ public function __construct(
 )
 ```
 
-**Parameters:**
-- `$socketPath`: Socket path for daemon communication
-  - **Empty string** (default): Auto-detects platform and uses default path
-  - **Unix/Linux/macOS**: `/tmp/parallite.sock`
-  - **Windows**: `\\\\.\\pipe\\parallite`
-- `$autoManageDaemon`: If true, automatically starts/stops daemon
-- `$projectRoot`: Project root directory (auto-detected if null)
+#### Key Methods
 
-#### Methods
+##### `promise(Closure $closure): Promise`
+
+Create a Promise with chaining support.
 
 ##### `async(Closure $closure): array`
 
-Submit a task for parallel execution.
+Lower-level API returning raw futures.
 
-**Returns:** Future array with `['socket' => resource, 'task_id' => string]`
+##### `await(Promise|array $future): mixed`
 
-```php
-$future = $client->async(fn() => heavyTask());
-```
-
-##### `await(?array $future): mixed`
-
-Await the result of a previously submitted task.
-
-**Returns:** The result of the task execution
-
-```php
-$result = $client->await($future);
-```
+Await a Promise or future.
 
 ##### `awaitAll(array $closures): array`
 
-Submit multiple tasks and await all results.
-
-**Returns:** Array of results in the same order
+Batch operation to await multiple closures.
 
 ```php
 $results = $client->awaitAll([
     fn() => task1(),
     fn() => task2(),
-    fn() => task3(),
 ]);
 ```
 
-##### `stopDaemon(): void`
+##### `awaitMultiple(array $promises): array`
 
-Manually stop the daemon (only if `autoManageDaemon` is true).
-
-```php
-$client->stopDaemon();
-```
-
-##### `static getDefaultSocketPath(): string`
-
-Get the default socket path for the current platform.
-
-**Returns:** Platform-specific socket path
+Await multiple promises/futures in parallel. Non-promise values pass through unchanged.
 
 ```php
-$socketPath = ParalliteClient::getDefaultSocketPath();
-// Linux/macOS: /tmp/parallite_{pid}.sock
-// Windows: \\.\pipe\parallite_{pid}
+$results = $client->awaitMultiple([
+    'static' => 'value',
+    'promise1' => $client->promise(fn() => task1()),
+    'promise2' => $client->promise(fn() => task2()),
+]);
+// ['static' => 'value', 'promise1' => result1, 'promise2' => result2]
 ```
 
 ## 🔧 Advanced Usage
@@ -388,6 +605,41 @@ $result = $client->await($client->async(fn() => 'work'));
 // Stop daemon manually
 $client->stopDaemon();
 ```
+
+## 🔧 Advanced: Using ParalliteClient Directly
+
+For advanced use cases where you need manual daemon control or custom socket paths, you can use `ParalliteClient` directly:
+
+```php
+use Parallite\ParalliteClient;
+
+// Manual daemon management
+$client = new ParalliteClient('/tmp/parallite.sock', autoManageDaemon: true);
+
+// Lower-level API (returns raw futures)
+$future = $client->async(fn() => 'task');
+$result = $client->await($future);
+
+// Or use promise() for chaining
+$promise = $client->promise(fn() => 'task')
+    ->then(fn($r) => strtoupper($r));
+$result = $client->await($promise);
+
+// Batch operations
+$results = $client->awaitAll([
+    fn() => task1(),
+    fn() => task2(),
+    fn() => task3(),
+]);
+```
+
+**When to use `ParalliteClient` directly:**
+- You need custom socket paths
+- You want manual daemon lifecycle control
+- You're integrating with existing code that manages daemons
+- You need the `awaitAll()` batch method
+
+**For most use cases, use the `async()` and `await()` helpers instead.**
 
 ## 🌐 Platform Support
 

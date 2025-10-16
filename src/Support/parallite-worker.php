@@ -49,7 +49,7 @@ require_once $autoloadPath;
 // Load configuration and includes
 // Priority: 1. Client project root, 2. Package root
 $clientConfigPath = $projectRoot.'/parallite.json';
-$packageRoot = dirname(dirname(__DIR__)); // From src/Support/ to package root
+$packageRoot = dirname(__DIR__, 2); // From src/Support/ to package root
 $packageConfigPath = $packageRoot.'/parallite.json';
 
 $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
@@ -85,6 +85,7 @@ if (file_exists($configPath)) {
 // Get worker name from environment
 $workerNameFromEnv = getenv('WORKER_NAME');
 $workerName = $workerNameFromEnv !== false ? $workerNameFromEnv : 'worker_'.getmypid();
+$defaultBenchmark = $config['enable_benchmark'] ?? false;
 
 // Log function
 function workerLog(string $message): void
@@ -186,6 +187,29 @@ while (true) {
 
     workerLog("Executing task: $taskId");
 
+    // Determine if benchmark is enabled for this task
+    // Priority: request field > config default
+    $benchmarkEnabled = $request['enable_benchmark'] ?? $defaultBenchmark;
+
+    $benchmarkSource = isset($request['enable_benchmark']) ? 'request' : 'config';
+    workerLog("Benchmark enabled: ".($benchmarkEnabled ? 'true' : 'false')." (source: $benchmarkSource)");
+
+    // Initialize benchmark metrics
+    $benchmark = null;
+    $startTime = 0.0;
+    $startMemory = 0;
+    $startRusage = null;
+    
+    if ($benchmarkEnabled) {
+        $startTime = microtime(true);
+        // Use real memory (not allocated blocks) for delta calculation
+        $startMemory = memory_get_usage(false);
+        $startMemoryAllocated = memory_get_usage(true);
+        // Reset peak memory before task execution
+        memory_reset_peak_usage();
+        $startRusage = getrusage();
+    }
+
     try {
         // Deserialize closure
         workerLog("Deserializing closure...");
@@ -199,7 +223,51 @@ while (true) {
         // Execute closure
         workerLog("Executing closure...");
         $result = $closure();
+        
+        // Capture memory immediately after execution (before GC)
+        $memoryAfterExecution = memory_get_usage(false);
+        $peakAfterExecution = memory_get_peak_usage(false);
+        
         workerLog("Closure executed successfully");
+
+        // Collect benchmark metrics if enabled
+        if ($benchmarkEnabled) {
+            $endTime = microtime(true);
+            // Use the memory captured immediately after execution
+            $endMemory = $memoryAfterExecution;
+            $endPeakMemory = $peakAfterExecution;
+            $endRusage = getrusage();
+
+            // Calculate execution time in milliseconds
+            $executionTimeMs = ($endTime - $startTime) * 1000;
+
+            // Calculate memory usage (delta during task execution)
+            // Use real memory usage, not allocated blocks
+            $memoryDelta = $endMemory - $startMemory;
+            // Peak memory is already reset before task, so just use the current peak
+            $peakMemoryUsed = $endPeakMemory;
+
+            // Calculate CPU time (user + system) in milliseconds
+            $totalCpuTimeMs = 0.0;
+            if (is_array($startRusage) && is_array($endRusage)) {
+                $userTimeMsStart = (is_numeric($startRusage['ru_utime.tv_sec'] ?? 0) ? (int)$startRusage['ru_utime.tv_sec'] : 0) * 1000 + (is_numeric($startRusage['ru_utime.tv_usec'] ?? 0) ? (int)$startRusage['ru_utime.tv_usec'] : 0) / 1000;
+                $systemTimeMsStart = (is_numeric($startRusage['ru_stime.tv_sec'] ?? 0) ? (int)$startRusage['ru_stime.tv_sec'] : 0) * 1000 + (is_numeric($startRusage['ru_stime.tv_usec'] ?? 0) ? (int)$startRusage['ru_stime.tv_usec'] : 0) / 1000;
+
+                $userTimeMsEnd = (is_numeric($endRusage['ru_utime.tv_sec'] ?? 0) ? (int)$endRusage['ru_utime.tv_sec'] : 0) * 1000 + (is_numeric($endRusage['ru_utime.tv_usec'] ?? 0) ? (int)$endRusage['ru_utime.tv_usec'] : 0) / 1000;
+                $systemTimeMsEnd = (is_numeric($endRusage['ru_stime.tv_sec'] ?? 0) ? (int)$endRusage['ru_stime.tv_sec'] : 0) * 1000 + (is_numeric($endRusage['ru_stime.tv_usec'] ?? 0) ? (int)$endRusage['ru_stime.tv_usec'] : 0) / 1000;
+
+                $userTimeMs = $userTimeMsEnd - $userTimeMsStart;
+                $systemTimeMs = $systemTimeMsEnd - $systemTimeMsStart;
+                $totalCpuTimeMs = $userTimeMs + $systemTimeMs;
+            }
+
+            $benchmark = [
+                'execution_time_ms' => round($executionTimeMs, 3),
+                'memory_delta_mb' => round($memoryDelta / 1024 / 1024, 4),
+                'memory_peak_mb' => round($peakMemoryUsed / 1024 / 1024, 4),
+                'cpu_time_ms' => round($totalCpuTimeMs, 3),
+            ];
+        }
 
         // Serialize result
         $response = [
@@ -207,6 +275,10 @@ while (true) {
             'result' => $result,
             'task_id' => $taskId,
         ];
+
+        if ($benchmark !== null) {
+            $response['benchmark'] = $benchmark;
+        }
 
         workerLog("Task $taskId completed successfully");
     } catch (Throwable $e) {

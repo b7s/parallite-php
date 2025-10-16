@@ -5,30 +5,15 @@ declare(strict_types=1);
 /**
  * Basic Parallite Example - TRUE PARALLEL EXECUTION
  * 
- * This example demonstrates how to use the ParalliteClient class
- * to execute PHP closures in parallel.
- * 
- * FIRST: Start daemon: ./vendor/bin/parallite --socket=/tmp/parallite-custom.sock
- * SECOND: Run example: php examples/basic.php
- * 
- * Or use autoManageDaemon: true to start daemon automatically
+ * This example demonstrates how to use the async() and await() helper functions
+ * to execute PHP closures in parallel - no setup required!
  */
 
 require __DIR__.'/../vendor/autoload.php';
 
-use Parallite\ParalliteClient;
+// No imports needed - async() and await() are available globally!
 
-// Create Parallite client instance
-// Option 1: Automatic daemon management (recommended)
-$client = new ParalliteClient(autoManageDaemon: true);
-
-// Option 2: Manual daemon with custom socket path
-// $client = new ParalliteClient('/tmp/parallite-custom.sock');
-
-// Option 3: Auto-detect socket path (requires daemon running)
-// $client = new ParalliteClient();
-
-echo "=== Parallite Client - Examples ===\n\n";
+echo "=== Parallite - Basic Examples ===\n\n";
 
 try {
     // Example 1: Basic async/await
@@ -36,26 +21,26 @@ try {
     echo "--------------------\n";
     $start = microtime(true);
 
-    $future1 = $client->async(function () {
+    $promise1 = async(function () {
         sleep(1);
         return 'Task 1 completed (1s)';
     });
 
-    $future2 = $client->async(function () {
+    $promise2 = async(function () {
         sleep(2);
         return 'Task 2 completed (2s)';
     });
 
-    $future3 = $client->async(function () {
+    $promise3 = async(function () {
         sleep(3);
         return 'Task 3 completed (3s)';
     });
 
-    echo "   ✓ All tasks submitted (sockets kept open)\n";
+    echo "   ✓ All tasks submitted (executing in parallel)\n";
 
-    $result1 = $client->await($future1);
-    $result2 = $client->await($future2);
-    $result3 = $client->await($future3);
+    $result1 = await($promise1);
+    $result2 = await($promise2);
+    $result3 = await($promise3);
 
     $duration = round(microtime(true) - $start, 2);
 
@@ -72,57 +57,52 @@ try {
 
     echo "\n";
 
-    // Example 2: Using awaitAll()
-    echo "2. Using awaitAll() convenience method\n";
-    echo "---------------------------------------\n";
+    // Example 2: Promise chaining
+    echo "2. Promise chaining with then()\n";
+    echo "--------------------------------\n";
     $start = microtime(true);
 
-    $results = $client->awaitAll([
-        fn() => sleep(1) && 'Task A (1s)',
-        fn() => sleep(1) && 'Task B (1s)',
-        fn() => sleep(1) && 'Task C (1s)',
-    ]);
+    $result = await(
+        async(fn() => 10)
+            ->then(fn($n) => $n * 2)
+            ->then(fn($n) => $n + 5)
+    );
 
-    $duration = round(microtime(true) - $start, 2);
-
-    echo "   Results: " . json_encode($results) . "\n";
-    echo "   Total time: {$duration}s (would be 3s if sequential)\n\n";
+    echo "   Result: {$result} (10 * 2 + 5)\n\n";
 
     // Example 3: Working with data
     echo "3. Working with data\n";
     echo "--------------------\n";
 
     $numbers = [1, 2, 3, 4, 5];
-    $futures = [];
+    $promises = [];
 
     foreach ($numbers as $n) {
-        $futures[] = $client->async(function () use ($n) {
+        $promises[] = async(function () use ($n) {
             usleep(100000); // 100ms
             return $n * $n;
         });
     }
 
     $squares = [];
-    foreach ($futures as $future) {
-        $squares[] = $client->await($future);
+    foreach ($promises as $promise) {
+        $squares[] = await($promise);
     }
 
     echo "   Numbers: " . json_encode($numbers) . "\n";
     echo "   Squares: " . json_encode($squares) . "\n\n";
 
-    // Example 4: Error handling
-    echo "4. Error handling\n";
-    echo "------------------\n";
+    // Example 4: Error handling with catch()
+    echo "4. Error handling with catch()\n";
+    echo "-------------------------------\n";
 
-    try {
-        $errorFuture = $client->async(function () {
+    $result = await(
+        async(function () {
             throw new RuntimeException('Simulated error');
-        });
+        })->catch(fn($e) => 'Rescued: ' . $e->getMessage())
+    );
 
-        $client->await($errorFuture);
-    } catch (RuntimeException $e) {
-        echo "   ✓ Caught error: {$e->getMessage()}\n\n";
-    }
+    echo "   Result: {$result}\n\n";
 
     echo "=== All examples completed successfully! ===\n";
 

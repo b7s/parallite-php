@@ -1,5 +1,7 @@
 {
   "php_includes": [],
+  "enable_benchmark": false,
+  "worker_debug_logs": false,
   "go_overrides": {
     "timeout_ms": 30000,
     "fixed_workers": 0,

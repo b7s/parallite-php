@@ -45,13 +45,15 @@ describe('ParalliteClient', function () {
     it('throws exception when awaiting null future', function () {
         $client = new ParalliteClient();
 
-        $client->await(null);
+        $future = null;
+        $client->await($future);
     })->throws(RuntimeException::class, 'No future or socket provided');
 
     it('throws exception when awaiting empty future', function () {
         $client = new ParalliteClient();
         
-        $client->await([]);
+        $future = [];
+        $client->await($future);
     })->throws(RuntimeException::class, 'No future or socket provided');
 });
 
