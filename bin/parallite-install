@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__.'/../vendor/autoload.php';
+
+use Parallite\Installer;
+
+$force = in_array('--force', $argv, true);
+
+try {
+    Installer::install($force);
+    exit(0);
+} catch (Throwable $e) {
+    echo "Error: {$e->getMessage()}\n";
+    exit(1);
+}

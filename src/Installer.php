@@ -1,0 +1,324 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Parallite;
+
+use RuntimeException;
+use ZipArchive;
+
+/**
+ * Handles downloading and installing the Parallite binary from GitHub releases.
+ */
+final class Installer
+{
+    private const GITHUB_REPO = 'b7s/parallite';
+    private const GITHUB_API_URL = 'https://api.github.com/repos/'.self::GITHUB_REPO.'/releases/latest';
+
+    /**
+     * Install the Parallite binary for the current platform.
+     *
+     * @param bool $force Force reinstall even if binary exists
+     */
+    public static function install(bool $force = false): void
+    {
+        $binPath = self::getBinPath();
+
+        if (! $force && file_exists($binPath)) {
+            echo "Parallite binary already installed at: {$binPath}\n";
+            echo "Use --force to reinstall.\n";
+            return;
+        }
+
+        echo "Installing Parallite binary...\n";
+
+        $platformInfo = self::detectPlatform();
+        $platform = $platformInfo['platform'];
+        $extension = $platformInfo['extension'];
+        
+        echo "Detected platform: {$platform}\n";
+
+        $downloadUrl = self::getDownloadUrl($platform, $extension);
+        echo "Downloading from: {$downloadUrl}\n";
+
+        self::downloadAndExtract($downloadUrl, $binPath, $platform, $extension);
+
+        echo "✓ Parallite binary installed successfully at: {$binPath}\n";
+    }
+
+    /**
+     * Update the Parallite binary to the latest version.
+     */
+    public static function update(): void
+    {
+        echo "Updating Parallite binary to latest version...\n";
+        self::install(force: true);
+    }
+
+    /**
+     * Get the installation path for the binary.
+     */
+    private static function getBinPath(): string
+    {
+        $vendorBin = dirname(__DIR__, 2).'/vendor/bin';
+
+        if (! is_dir($vendorBin)) {
+            mkdir($vendorBin, 0755, true);
+        }
+
+        return $vendorBin.'/parallite';
+    }
+
+    /**
+     * Detect the current platform and architecture.
+     *
+     * @return array{platform: string, extension: string}
+     */
+    private static function detectPlatform(): array
+    {
+        $os = PHP_OS_FAMILY;
+        $arch = php_uname('m');
+
+        // Normalize architecture names
+        $arch = match ($arch) {
+            'x86_64', 'AMD64' => 'amd64',
+            'aarch64', 'arm64' => 'arm64',
+            default => throw new RuntimeException("Unsupported architecture: {$arch}"),
+        };
+
+        // Map OS to platform names used in Parallite releases
+        $platform = match ($os) {
+            'Linux' => "linux-{$arch}",
+            'Darwin' => "darwin-{$arch}",
+            'Windows' => "windows-{$arch}",
+            default => throw new RuntimeException("Unsupported OS: {$os}"),
+        };
+
+        $extension = $os === 'Windows' ? 'zip' : 'tar.gz';
+
+        return ['platform' => $platform, 'extension' => $extension];
+    }
+
+    /**
+     * Get the download URL for the specified platform from GitHub releases.
+     */
+    private static function getDownloadUrl(string $platform, string $extension): string
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => [
+                    'User-Agent: Parallite-PHP-Installer',
+                    'Accept: application/vnd.github.v3+json',
+                ],
+            ],
+        ]);
+
+        $response = @file_get_contents(self::GITHUB_API_URL, false, $context);
+
+        if ($response === false) {
+            throw new RuntimeException(
+                'Failed to fetch latest release from GitHub. Please check your internet connection.'
+            );
+        }
+
+        $release = json_decode($response, true);
+
+        if (! isset($release['assets']) || ! is_array($release['assets'])) {
+            throw new RuntimeException('Invalid response from GitHub API');
+        }
+
+        // Find the asset matching the platform and extension
+        foreach ($release['assets'] as $asset) {
+            if (str_contains($asset['name'], $platform) && str_ends_with($asset['name'], $extension)) {
+                return $asset['browser_download_url'];
+            }
+        }
+
+        throw new RuntimeException(
+            "No binary found for platform: {$platform}.{$extension}. Available assets: ".
+            implode(', ', array_column($release['assets'], 'name'))
+        );
+    }
+
+    /**
+     * Download and extract the binary archive.
+     */
+    private static function downloadAndExtract(string $url, string $destination, string $platform, string $extension): void
+    {
+        $tmpDir = sys_get_temp_dir();
+        $archivePath = $tmpDir.'/parallite-'.uniqid().'.'.$extension;
+
+        // Download archive
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => 'User-Agent: Parallite-PHP-Installer',
+                'follow_location' => 1,
+            ],
+        ]);
+
+        $archive = @file_get_contents($url, false, $context);
+
+        if ($archive === false) {
+            throw new RuntimeException("Failed to download archive from: {$url}");
+        }
+
+        if (file_put_contents($archivePath, $archive) === false) {
+            throw new RuntimeException("Failed to write archive to: {$archivePath}");
+        }
+
+        // Extract archive
+        try {
+            if ($extension === 'zip') {
+                self::extractZip($archivePath, $destination, $platform);
+            } else {
+                self::extractTarGz($archivePath, $destination, $platform);
+            }
+        } finally {
+            @unlink($archivePath);
+        }
+
+        // Make binary executable (Unix-like systems)
+        if (PHP_OS_FAMILY !== 'Windows') {
+            chmod($destination, 0755);
+        }
+    }
+
+    /**
+     * Extract tar.gz archive and find the binary.
+     */
+    private static function extractTarGz(string $archivePath, string $destination, string $platform): void
+    {
+        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
+        mkdir($tmpDir, 0755, true);
+
+        try {
+            // Extract using tar command
+            $command = sprintf(
+                'tar -xzf %s -C %s 2>&1',
+                escapeshellarg($archivePath),
+                escapeshellarg($tmpDir)
+            );
+
+            exec($command, $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                throw new RuntimeException('Failed to extract tar.gz: '.implode("\n", $output));
+            }
+
+            // Find the binary file
+            $binaryName = "parallite-{$platform}";
+            $binaryPath = $tmpDir.'/'.$binaryName;
+
+            if (! file_exists($binaryPath)) {
+                throw new RuntimeException("Binary not found in archive: {$binaryName}");
+            }
+
+            // Move to destination
+            if (! rename($binaryPath, $destination)) {
+                throw new RuntimeException("Failed to move binary to: {$destination}");
+            }
+        } finally {
+            // Cleanup
+            if (is_dir($tmpDir)) {
+                array_map('unlink', glob($tmpDir.'/*') ?: []);
+                rmdir($tmpDir);
+            }
+        }
+    }
+
+    /**
+     * Extract zip archive and find the binary.
+     */
+    private static function extractZip(string $archivePath, string $destination, string $platform): void
+    {
+        if (! class_exists('ZipArchive')) {
+            throw new RuntimeException('ZipArchive extension is required for Windows installation');
+        }
+
+        $zip = new ZipArchive();
+        
+        if ($zip->open($archivePath) !== true) {
+            throw new RuntimeException('Failed to open zip archive');
+        }
+
+        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
+        mkdir($tmpDir, 0755, true);
+
+        try {
+            $zip->extractTo($tmpDir);
+            $zip->close();
+
+            // Find the binary file
+            $binaryName = "parallite-{$platform}.exe";
+            $binaryPath = $tmpDir.'/'.$binaryName;
+
+            if (! file_exists($binaryPath)) {
+                throw new RuntimeException("Binary not found in archive: {$binaryName}");
+            }
+
+            // Move to destination
+            if (! rename($binaryPath, $destination.'.exe')) {
+                throw new RuntimeException("Failed to move binary to: {$destination}");
+            }
+        } finally {
+            // Cleanup
+            if (is_dir($tmpDir)) {
+                array_map('unlink', glob($tmpDir.'/*') ?: []);
+                rmdir($tmpDir);
+            }
+        }
+    }
+
+    /**
+     * Get the current installed version of Parallite.
+     */
+    public static function getInstalledVersion(): ?string
+    {
+        $binPath = self::getBinPath();
+
+        if (! file_exists($binPath)) {
+            return null;
+        }
+
+        $output = shell_exec(escapeshellarg($binPath).' --version 2>&1');
+
+        if ($output === null) {
+            return null;
+        }
+
+        // Extract version from output
+        if (preg_match('/v?(\d+\.\d+\.\d+)/', $output, $matches)) {
+            return $matches[1];
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Check if a newer version is available.
+     */
+    public static function checkForUpdates(): ?string
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => [
+                    'User-Agent: Parallite-PHP-Installer',
+                    'Accept: application/vnd.github.v3+json',
+                ],
+            ],
+        ]);
+
+        $response = @file_get_contents(self::GITHUB_API_URL, false, $context);
+
+        if ($response === false) {
+            return null;
+        }
+
+        $release = json_decode($response, true);
+
+        return $release['tag_name'] ?? null;
+    }
+}
