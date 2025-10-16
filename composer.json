@@ -1,7 +1,7 @@
 {
     "name": "parallite/parallite-php",
     "description": "Standalone PHP client for Parallite - Execute PHP closures in true parallel",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "type": "library",
     "keywords": ["parallel", "php", "go", "laravel", "async", "concurrency", "parallite", "closure", "multiprocessing"],
     "license": "MIT",
@@ -12,9 +12,10 @@
         }
     ],
     "require": {
-        "php": "^8.3",
-        "ext-sockets": "*",
-        "opis/closure": "^4.0"
+      "php": "^8.3",
+      "opis/closure": "^4.0",
+      "ext-sockets": "*",
+      "ext-zip": "*"
     },
     "require-dev": {
         "pestphp/pest": "^4.0",
