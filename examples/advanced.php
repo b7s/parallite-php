@@ -63,22 +63,22 @@ $chunks = array_chunk($data, $chunkSize);
 
 $start = microtime(true);
 
-$processedChunks = $client->awaitAll(
-    array_map(
-        fn($chunk) => function () use ($chunk) {
-            // Simulate heavy processing
-            usleep(100000); // 100ms
-            return array_map(fn($n) => $n * $n, $chunk);
-        },
-        $chunks
-    )
-);
+$closures = [];
+foreach ($chunks as $chunk) {
+    $closures[] = function () use ($chunk) {
+        // Simulate heavy processing
+        usleep(100000); // 100ms
+        return array_map(fn($n) => $n * $n, $chunk);
+    };
+}
+
+$processedChunks = $client->awaitAll($closures);
 
 $duration = round(microtime(true) - $start, 2);
 
 $allResults = array_merge(...$processedChunks);
 
-echo "   Processed " . count($data) . " items in {$chunks} chunks\n";
+echo "   Processed " . count($data) . " items in " . count($chunks) . " chunks\n";
 echo "   Duration: {$duration}s\n";
 echo "   Results: " . implode(', ', array_slice($allResults, 0, 10)) . "...\n\n";
 
@@ -154,21 +154,21 @@ echo "----------------------------\n";
 
 $files = ['file1.txt', 'file2.txt', 'file3.txt'];
 
-$fileResults = $client->awaitAll(
-    array_map(
-        fn($file) => function () use ($file) {
-            // Simulate file processing
-            usleep(200000); // 200ms
-            return [
-                'file' => $file,
-                'size' => rand(1000, 10000),
-                'lines' => rand(10, 100),
-                'processed' => true
-            ];
-        },
-        $files
-    )
-);
+$fileClosures = [];
+foreach ($files as $file) {
+    $fileClosures[] = function () use ($file) {
+        // Simulate file processing
+        usleep(200000); // 200ms
+        return [
+            'file' => $file,
+            'size' => rand(1000, 10000),
+            'lines' => rand(10, 100),
+            'processed' => true
+        ];
+    };
+}
+
+$fileResults = $client->awaitAll($fileClosures);
 
 echo "   Processed " . count($fileResults) . " files:\n";
 foreach ($fileResults as $result) {

@@ -47,9 +47,18 @@ describe('Basic Parallel Execution', function () {
         $start = microtime(true);
 
         $results = $this->client->awaitAll([
-            fn () => usleep(100000) || 'Task A',
-            fn () => usleep(100000) || 'Task B',
-            fn () => usleep(100000) || 'Task C',
+            function () {
+                usleep(100000);
+                return 'Task A';
+            },
+            function () {
+                usleep(100000);
+                return 'Task B';
+            },
+            function () {
+                usleep(100000);
+                return 'Task C';
+            },
         ]);
 
         $duration = microtime(true) - $start;

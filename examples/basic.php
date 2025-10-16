@@ -19,14 +19,14 @@ require __DIR__.'/../vendor/autoload.php';
 use Parallite\ParalliteClient;
 
 // Create Parallite client instance
-// Option 1: Auto-detect socket path (recommended)
-$client = new ParalliteClient();
+// Option 1: Automatic daemon management (recommended)
+$client = new ParalliteClient(autoManageDaemon: true);
 
 // Option 2: Manual daemon with custom socket path
 // $client = new ParalliteClient('/tmp/parallite-custom.sock');
 
-// Option 3: Automatic daemon management
-// $client = new ParalliteClient(autoManageDaemon: true);
+// Option 3: Auto-detect socket path (requires daemon running)
+// $client = new ParalliteClient();
 
 echo "=== Parallite Client - Examples ===\n\n";
 

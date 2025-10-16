@@ -51,7 +51,8 @@
         ],
         "test:type-coverage": "@php vendor/bin/pest --type-coverage --min=100",
         "test:types": "@php vendor/bin/phpstan analyse --memory-limit=2G",
-        "test:unit": "@php vendor/bin/pest --coverage --min=90"
+        "test:unit": "XDEBUG_MODE=coverage php vendor/bin/pest",
+        "test:coverage": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --min=90"
     },
     "config": {
         "sort-packages": true,

@@ -1,0 +1,10 @@
+{
+  "php_includes": [],
+  "go_overrides": {
+    "timeout_ms": 30000,
+    "fixed_workers": 0,
+    "prefix_name": "parallite_worker",
+    "fail_mode": "continue",
+    "max_payload_bytes": 10485760
+  }
+}

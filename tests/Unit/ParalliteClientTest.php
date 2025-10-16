@@ -27,14 +27,24 @@ describe('ParalliteClient', function () {
     });
 
     it('throws exception when connecting to non-existent daemon', function () {
-        $client = new ParalliteClient('/tmp/non-existent-parallite.sock');
-        
-        $client->async(fn () => 'test');
-    })->throws(RuntimeException::class, 'Failed to connect to daemon');
+        $exceptionThrown = false;
+        $exceptionMessage = '';
+
+        try {
+            $client = new ParalliteClient('/tmp/non-existent-parallite.sock', autoManageDaemon: false);
+            $client->async(fn () => 'test');
+        } catch (RuntimeException $e) {
+            $exceptionThrown = true;
+            $exceptionMessage = $e->getMessage();
+        }
+
+        expect($exceptionThrown)->toBeTrue()
+            ->and($exceptionMessage)->toContain('Failed to connect to daemon');
+    });
 
     it('throws exception when awaiting null future', function () {
         $client = new ParalliteClient();
-        
+
         $client->await(null);
     })->throws(RuntimeException::class, 'No future or socket provided');
 

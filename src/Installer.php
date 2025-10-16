@@ -60,13 +60,40 @@ final class Installer
      */
     private static function getBinPath(): string
     {
-        $vendorBin = dirname(__DIR__, 2).'/vendor/bin';
+        // Find project root by looking for vendor/autoload.php
+        $projectRoot = self::findProjectRoot();
+        $vendorBin = $projectRoot.'/vendor/bin';
 
         if (! is_dir($vendorBin)) {
             mkdir($vendorBin, 0755, true);
         }
 
         return $vendorBin.'/parallite';
+    }
+
+    /**
+     * Find project root by looking for vendor/autoload.php
+     */
+    private static function findProjectRoot(): string
+    {
+        $dir = __DIR__;
+        $maxLevels = 10;
+        
+        for ($i = 0; $i < $maxLevels; $i++) {
+            if (file_exists($dir.'/vendor/autoload.php')) {
+                return $dir;
+            }
+            
+            $parentDir = dirname($dir);
+            if ($parentDir === $dir) {
+                break; // Reached filesystem root
+            }
+            
+            $dir = $parentDir;
+        }
+        
+        // Fallback to 2 levels up from src/
+        return dirname(__DIR__, 2);
     }
 
     /**
@@ -123,6 +150,9 @@ final class Installer
         }
 
         $release = json_decode($response, true);
+        if (!is_array($release)) {
+            throw new RuntimeException('Invalid response from GitHub API');
+        }
 
         if (! isset($release['assets']) || ! is_array($release['assets'])) {
             throw new RuntimeException('Invalid response from GitHub API');
@@ -130,6 +160,12 @@ final class Installer
 
         // Find the asset matching the platform and extension
         foreach ($release['assets'] as $asset) {
+            if (!is_array($asset) || !isset($asset['name'], $asset['browser_download_url'])) {
+                continue;
+            }
+            if (!is_string($asset['name']) || !is_string($asset['browser_download_url'])) {
+                continue;
+            }
             if (str_contains($asset['name'], $platform) && str_ends_with($asset['name'], $extension)) {
                 return $asset['browser_download_url'];
             }
@@ -222,7 +258,10 @@ final class Installer
         } finally {
             // Cleanup
             if (is_dir($tmpDir)) {
-                array_map('unlink', glob($tmpDir.'/*') ?: []);
+                $files = glob($tmpDir.'/*');
+                if ($files !== false) {
+                    array_map('unlink', $files);
+                }
                 rmdir($tmpDir);
             }
         }
@@ -265,7 +304,10 @@ final class Installer
         } finally {
             // Cleanup
             if (is_dir($tmpDir)) {
-                array_map('unlink', glob($tmpDir.'/*') ?: []);
+                $files = glob($tmpDir.'/*');
+                if ($files !== false) {
+                    array_map('unlink', $files);
+                }
                 rmdir($tmpDir);
             }
         }
@@ -284,12 +326,13 @@ final class Installer
 
         $output = shell_exec(escapeshellarg($binPath).' --version 2>&1');
 
-        if ($output === null) {
+        if ($output === null || $output === false) {
             return null;
         }
 
         // Extract version from output
-        if (preg_match('/v?(\d+\.\d+\.\d+)/', $output, $matches)) {
+        $matchResult = preg_match('/v?(\d+\.\d+\.\d+)/', $output, $matches);
+        if ($matchResult === 1) {
             return $matches[1];
         }
 
@@ -318,7 +361,11 @@ final class Installer
         }
 
         $release = json_decode($response, true);
+        if (!is_array($release)) {
+            return null;
+        }
 
-        return $release['tag_name'] ?? null;
+        $tagName = $release['tag_name'] ?? null;
+        return is_string($tagName) ? $tagName : null;
     }
 }

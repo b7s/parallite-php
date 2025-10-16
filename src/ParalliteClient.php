@@ -13,19 +13,15 @@ use RuntimeException;
  * This class provides a simple interface to communicate with Parallite daemon
  * and execute PHP closures in parallel.
  * 
- * The constructor automatically loads php_includes from parallite.json if it exists,
- * ensuring that helper files, configurations, and dependencies are available
- * in the parallel execution context.
- * 
  * Usage:
  * ```php
  * use Parallite\ParalliteClient;
  * 
- * // Option 1: Manual daemon management (you start daemon yourself)
- * $client = new ParalliteClient('/tmp/parallite-custom.sock');
+ * // Option 1: Automatic daemon management (recommended)
+ * $client = new ParalliteClient(autoManageDaemon: true);
  * 
- * // Option 2: Automatic daemon management (client starts/stops daemon)
- * $client = new ParalliteClient('/tmp/parallite-custom.sock', autoManageDaemon: true);
+ * // Option 2: Manual daemon management (you start daemon yourself)
+ * $client = new ParalliteClient('/tmp/parallite-custom.sock', autoManageDaemon: false);
  * 
  * // Submit tasks
  * $future1 = $client->async(fn() => sleep(1) && 'Task 1');
@@ -39,29 +35,23 @@ use RuntimeException;
  * ```
  * 
  * Required dependencies:
- * - PHP 8.3+
+ * - PHP 8.2+
  * - opis/closure
  * - ext-sockets
  * 
- * Optional configuration (parallite.json in project root):
- * {
- *   "php_includes": [
- *     "config/bootstrap.php",
- *     "helpers/functions.php"
- *   ]
- * }
+ * Configuration (parallite.json in project root):
+ * - php_includes: Files loaded by worker processes
+ * - go_overrides: Daemon configuration (timeout, workers, etc)
  */
 class ParalliteClient
 {
     private string $socketPath;
     private ?int $daemonPid = null;
-    private bool $autoManageDaemon = false;
+    private bool $autoManageDaemon = true;
     private string $projectRoot;
 
     /**
      * Create a new Parallite client
-     * 
-     * Automatically loads php_includes from parallite.json if it exists.
      * 
      * @param string $socketPath Path to socket (Unix: /tmp/file.sock, Windows: \\.\pipe\name)
      * @param bool $autoManageDaemon If true, automatically starts/stops daemon
@@ -69,16 +59,13 @@ class ParalliteClient
      */
     public function __construct(
         string $socketPath = '',
-        bool $autoManageDaemon = false,
+        bool $autoManageDaemon = true,
         ?string $projectRoot = null
     )
     {
         $this->socketPath = $socketPath !== '' ? $socketPath : self::getDefaultSocketPath();
         $this->autoManageDaemon = $autoManageDaemon;
         $this->projectRoot = $projectRoot ?? $this->findProjectRoot();
-
-        // Load configuration and includes
-        $this->loadConfiguration($this->projectRoot);
 
         // Auto-start daemon if enabled
         if ($this->autoManageDaemon) {
@@ -88,41 +75,6 @@ class ParalliteClient
         // Register shutdown handler to stop daemon
         if ($this->autoManageDaemon) {
             register_shutdown_function([$this, 'stopDaemon']);
-        }
-    }
-
-    /**
-     * Load configuration from parallite.json and include required files
-     * 
-     * This method reads the parallite.json configuration file from the project root
-     * and loads all files specified in the php_includes array.
-     * 
-     * @param string|null $projectRoot Project root directory (auto-detected if null)
-     * @return void
-     */
-    private function loadConfiguration(?string $projectRoot): void
-    {
-        $projectRoot = $projectRoot ?? $this->findProjectRoot();
-        $configPath = $projectRoot.'/parallite.json';
-
-        if (!file_exists($configPath)) {
-            return;
-        }
-
-        $config = json_decode(file_get_contents($configPath), true);
-        
-        if (!is_array($config)) {
-            return;
-        }
-
-        // Load php_includes from configuration
-        if (isset($config['php_includes']) && is_array($config['php_includes'])) {
-            foreach ($config['php_includes'] as $include) {
-                $includePath = $projectRoot.'/'.$include;
-                if (file_exists($includePath)) {
-                    require_once $includePath;
-                }
-            }
         }
     }
 
@@ -160,14 +112,18 @@ class ParalliteClient
      * that can be awaited later. The socket is kept open to allow parallel execution.
      * 
      * @param Closure $closure The closure to execute
-     * @return array Future containing socket and task_id
+     * @return array{socket: \Socket, task_id: string} Future containing socket and task_id
      * @throws RuntimeException If connection or send fails
      */
     public function async(Closure $closure): array
     {
         $socket = socket_create(AF_UNIX, SOCK_STREAM, 0);
 
-        if (!$socket || !@socket_connect($socket, $this->socketPath)) {
+        if ($socket === false) {
+            throw new RuntimeException('Failed to create socket');
+        }
+        
+        if (!@socket_connect($socket, $this->socketPath)) {
             throw new RuntimeException('Failed to connect to daemon at: ' . $this->socketPath);
         }
 
@@ -191,6 +147,10 @@ class ParalliteClient
             'payload' => base64_encode($serialized),
             'context' => [],
         ]);
+        
+        if ($message === false) {
+            throw new RuntimeException('Failed to encode message');
+        }
 
         // Pack message with 4-byte length prefix (big-endian)
         $length = pack('N', strlen($message));
@@ -215,13 +175,13 @@ class ParalliteClient
      * This method reads the response from the open socket and returns the result.
      * The socket is automatically closed after reading.
      * 
-     * @param array|null $future The future returned by async()
+     * @param array{socket: \Socket|null, task_id: string}|null $future The future returned by async()
      * @return mixed The result of the task execution
      * @throws RuntimeException If reading fails or task failed
      */
     public function await(?array $future = null): mixed
     {
-        if (empty($future) || empty($future['socket'])) {
+        if (!is_array($future) || !isset($future['socket'])) {
             throw new RuntimeException('No future or socket provided');
         }
 
@@ -237,6 +197,9 @@ class ParalliteClient
 
         // Parse the JSON response
         $data = json_decode($response, true);
+        if (!is_array($data)) {
+            throw new RuntimeException('Invalid response from daemon');
+        }
 
         // Check if the task succeeded
         if (!isset($data['ok']) || $data['ok'] !== true) {
@@ -254,7 +217,7 @@ class ParalliteClient
      * for multiple tasks, similar to Promise.all() in JavaScript.
      * 
      * @param array<Closure> $closures Array of closures to execute
-     * @return array Array of results in the same order
+     * @return array<mixed> Array of results in the same order
      */
     public function awaitAll(array $closures): array
     {
@@ -282,11 +245,11 @@ class ParalliteClient
      * 
      * We read in chunks to handle partial reads correctly.
      * 
-     * @param mixed $socket The socket to read from
+     * @param \Socket $socket The socket to read from
      * @return string The message data
      * @throws RuntimeException If reading fails
      */
-    private function readFrame(mixed $socket): string
+    private function readFrame(\Socket $socket): string
     {
         // Step 1: Read the 4-byte length prefix
         $lengthData = '';
@@ -309,7 +272,11 @@ class ParalliteClient
         }
 
         // Unpack the length (N = unsigned long, big-endian, 32-bit)
-        $length = unpack('N', $lengthData)[1];
+        $unpacked = unpack('N', $lengthData);
+        if ($unpacked === false) {
+            throw new RuntimeException('Failed to unpack length');
+        }
+        $length = $unpacked[1];
 
         // Step 2: Read the actual message data
         $data = '';
@@ -362,7 +329,7 @@ class ParalliteClient
         }
 
         // Try to connect to verify daemon is responsive
-        $socketType = $this->isWindows() ? AF_INET : AF_UNIX;
+        $socketType = self::isWindows() ? AF_INET : AF_UNIX;
         $socket = @socket_create($socketType, SOCK_STREAM, 0);
         if ($socket === false) {
             return false;
@@ -379,7 +346,7 @@ class ParalliteClient
      * 
      * @return bool True if Windows
      */
-    private function isWindows(): bool
+    private static function isWindows(): bool
     {
         return mb_strtolower(PHP_OS_FAMILY) === 'windows';
     }
@@ -416,10 +383,14 @@ class ParalliteClient
             @unlink($this->socketPath);
         }
 
-        $configPath = $this->projectRoot.'/parallite.json';
+        // Determine config path (client project or package)
+        $clientConfigPath = $this->projectRoot.'/parallite.json';
+        $packageConfigPath = dirname(__DIR__).'/parallite.json';
+        $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
+        
         $logFile = sys_get_temp_dir().'/parallite_client_'.getmypid().'.log';
 
-        if ($this->isWindows()) {
+        if (self::isWindows()) {
             $this->startDaemonWindows($binaryPath, $configPath, $config, $logFile);
         } else {
             $this->startDaemonUnix($binaryPath, $configPath, $config, $logFile);
@@ -441,25 +412,35 @@ class ParalliteClient
      */
     private function startDaemonUnix(string $binaryPath, string $configPath, array $config, string $logFile): void
     {
+        $timeoutMs = is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 30000;
+        $fixedWorkers = is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 0;
+        $prefixName = is_string($config['prefix_name'] ?? null) ? $config['prefix_name'] : 'parallite_worker';
+        $failMode = is_string($config['fail_mode'] ?? null) ? $config['fail_mode'] : 'continue';
+        
         $cmd = sprintf(
-            '%s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s %s --db-retention-minutes=%d > %s 2>&1 & echo $!',
+            '%s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s > %s 2>&1 & echo $!',
             escapeshellarg($binaryPath),
             escapeshellarg($configPath),
             escapeshellarg($this->socketPath),
-            $config['timeout_ms'],
-            $config['fixed_workers'],
-            $config['prefix_name'],
-            $config['fail_mode'],
-            $config['db_persistent'] ? '--db-persistent' : '',
-            $config['db_retention_minutes'],
+            $timeoutMs,
+            $fixedWorkers,
+            $prefixName,
+            $failMode,
             escapeshellarg($logFile)
         );
 
         $output = shell_exec($cmd);
-        $this->daemonPid = $output !== null ? (int) trim($output) : null;
+        if ($output === null || $output === false) {
+            throw new RuntimeException('Failed to execute daemon start command');
+        }
+        $this->daemonPid = (int) trim($output);
 
-        if ($this->daemonPid === null || $this->daemonPid === 0) {
-            $logContent = file_exists($logFile) ? file_get_contents($logFile) : 'Log not found';
+        if ($this->daemonPid === 0) {
+            $logContent = 'Log not found';
+            if (file_exists($logFile)) {
+                $content = file_get_contents($logFile);
+                $logContent = $content !== false ? $content : 'Failed to read log';
+            }
             throw new RuntimeException(
                 "Failed to start Parallite daemon. Log: {$logFile}\n{$logContent}"
             );
@@ -477,21 +458,27 @@ class ParalliteClient
      */
     private function startDaemonWindows(string $binaryPath, string $configPath, array $config, string $logFile): void
     {
+        $timeoutMs = is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 30000;
+        $fixedWorkers = is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 0;
+        $prefixName = is_string($config['prefix_name'] ?? null) ? $config['prefix_name'] : 'parallite_worker';
+        $failMode = is_string($config['fail_mode'] ?? null) ? $config['fail_mode'] : 'continue';
+        
         $cmd = sprintf(
-            'start /B "" %s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s %s --db-retention-minutes=%d > %s 2>&1',
+            'start /B "" %s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s > %s 2>&1',
             escapeshellarg($binaryPath),
             escapeshellarg($configPath),
             escapeshellarg($this->socketPath),
-            $config['timeout_ms'],
-            $config['fixed_workers'],
-            $config['prefix_name'],
-            $config['fail_mode'],
-            $config['db_persistent'] ? '--db-persistent' : '',
-            $config['db_retention_minutes'],
+            $timeoutMs,
+            $fixedWorkers,
+            $prefixName,
+            $failMode,
             escapeshellarg($logFile)
         );
 
-        pclose(popen($cmd, 'r'));
+        $handle = popen($cmd, 'r');
+        if ($handle !== false) {
+            pclose($handle);
+        }
         $this->daemonPid = -1;
     }
 
@@ -503,7 +490,7 @@ class ParalliteClient
     public function stopDaemon(): void
     {
         if ($this->daemonPid !== null) {
-            if ($this->isWindows()) {
+            if (self::isWindows()) {
                 if (file_exists($this->socketPath)) {
                     @unlink($this->socketPath);
                 }
@@ -529,20 +516,20 @@ class ParalliteClient
      */
     private function findBinary(): string
     {
-        $binaryName = $this->isWindows() ? 'parallite.exe' : 'parallite';
+        $binaryName = self::isWindows() ? 'parallite.exe' : 'parallite';
         
         $paths = [
             $this->projectRoot.'/vendor/bin/'.$binaryName,
             $this->projectRoot.'/bin/'.$binaryName,
         ];
         
-        if (!$this->isWindows()) {
+        if (!self::isWindows()) {
             $paths[] = '/usr/local/bin/parallite';
         }
 
         foreach ($paths as $path) {
             if (file_exists($path)) {
-                if ($this->isWindows() || is_executable($path)) {
+                if (self::isWindows() || is_executable($path)) {
                     return $path;
                 }
             }
@@ -556,24 +543,41 @@ class ParalliteClient
     /**
      * Load daemon configuration from parallite.json
      * 
+     * Priority:
+     * 1. Client project root (where composer.json is)
+     * 2. Package root (parallite-php package)
+     * 
      * @return array<string, mixed> Configuration array
      */
     private function loadDaemonConfig(): array
     {
-        $configPath = $this->projectRoot.'/parallite.json';
-
         $defaults = [
             'timeout_ms' => 30000,
             'fixed_workers' => 0,
             'prefix_name' => 'parallite_worker',
             'fail_mode' => 'continue',
-            'db_persistent' => false,
-            'db_retention_minutes' => 60,
+            'max_payload_bytes' => 10485760,
         ];
+
+        // Try client project root first
+        $clientConfigPath = $this->projectRoot.'/parallite.json';
+        
+        // If not found, try package root
+        $packageRoot = dirname(__DIR__);
+        $packageConfigPath = $packageRoot.'/parallite.json';
+        
+        $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
 
         if (file_exists($configPath)) {
             $json = file_get_contents($configPath);
+            if ($json === false) {
+                return $defaults;
+            }
+            
             $config = json_decode($json, true);
+            if (!is_array($config)) {
+                return $defaults;
+            }
 
             if (isset($config['go_overrides']) && is_array($config['go_overrides'])) {
                 $defaults = array_merge($defaults, $config['go_overrides']);
