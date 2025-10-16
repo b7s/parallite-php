@@ -15,31 +15,7 @@ final class ConfigService
 
     public function __construct(?string $projectRoot = null)
     {
-        $this->projectRoot = $projectRoot ?? $this->findProjectRoot();
-    }
-
-    /**
-     * Find project root by looking for vendor/autoload.php
-     */
-    private function findProjectRoot(): string
-    {
-        $dir = dirname(__DIR__);
-        $maxLevels = 10;
-        
-        for ($i = 0; $i < $maxLevels; $i++) {
-            if (file_exists($dir.'/vendor/autoload.php')) {
-                return $dir;
-            }
-            
-            $parentDir = dirname($dir);
-            if ($parentDir === $dir) {
-                break;
-            }
-            
-            $dir = $parentDir;
-        }
-        
-        return dirname(__DIR__, 2);
+        $this->projectRoot = $projectRoot ?? ProjectRootFinderService::find(dirname(__DIR__));
     }
 
     public function getProjectRoot(): string

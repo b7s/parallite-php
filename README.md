@@ -28,6 +28,7 @@
 
 - PHP 8.3 or higher
 - ext-sockets
+- ext-zip
 - Composer 2+
 
 ## 📦 Installation

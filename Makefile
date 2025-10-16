@@ -72,7 +72,7 @@ release:
 	echo "📝 Updating composer.json version..."; \
 	composer config version "$$VERSION_INPUT"; \
 	echo "✅ Staging release files..."; \
-	git add composer.json; \
+	git add -A; \
 	echo "📝 Creating release commit..."; \
 	git commit -m "$$MESSAGE_INPUT"; \
 	echo "🏷️ Creating tag v$$VERSION_INPUT..."; \

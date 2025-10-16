@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Parallite;
 
+use Parallite\Service\ProjectRootFinderService;
 use RuntimeException;
 use ZipArchive;
 
@@ -12,8 +13,8 @@ use ZipArchive;
  */
 final class Installer
 {
-    private const GITHUB_REPO = 'b7s/parallite';
-    private const GITHUB_API_URL = 'https://api.github.com/repos/'.self::GITHUB_REPO.'/releases/latest';
+    private const string GITHUB_REPO = 'b7s/parallite';
+    private const string GITHUB_API_URL = 'https://api.github.com/repos/'.self::GITHUB_REPO.'/releases/latest';
 
     /**
      * Install the Parallite binary for the current platform.
@@ -61,7 +62,7 @@ final class Installer
     private static function getBinPath(): string
     {
         // Find project root by looking for vendor/autoload.php
-        $projectRoot = self::findProjectRoot();
+        $projectRoot = ProjectRootFinderService::find(__DIR__);
         $vendorBin = $projectRoot.'/vendor/bin';
 
         if (! is_dir($vendorBin)) {
@@ -71,30 +72,6 @@ final class Installer
         return $vendorBin.'/parallite';
     }
 
-    /**
-     * Find project root by looking for vendor/autoload.php
-     */
-    private static function findProjectRoot(): string
-    {
-        $dir = __DIR__;
-        $maxLevels = 10;
-        
-        for ($i = 0; $i < $maxLevels; $i++) {
-            if (file_exists($dir.'/vendor/autoload.php')) {
-                return $dir;
-            }
-            
-            $parentDir = dirname($dir);
-            if ($parentDir === $dir) {
-                break; // Reached filesystem root
-            }
-            
-            $dir = $parentDir;
-        }
-        
-        // Fallback to 2 levels up from src/
-        return dirname(__DIR__, 2);
-    }
 
     /**
      * Detect the current platform and architecture.

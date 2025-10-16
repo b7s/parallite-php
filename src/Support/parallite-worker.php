@@ -8,34 +8,12 @@ declare(strict_types=1);
  * This worker process is spawned by the Go daemon to execute PHP closures.
  */
 
-// Find project root by looking for vendor/autoload.php
-function findProjectRoot(string $startDir): ?string
-{
-    $dir = $startDir;
-    $maxLevels = 10;
-    
-    for ($i = 0; $i < $maxLevels; $i++) {
-        if (file_exists($dir.'/vendor/autoload.php')) {
-            return $dir;
-        }
-        
-        $parentDir = dirname($dir);
-        if ($parentDir === $dir) {
-            break; // Reached filesystem root
-        }
-        
-        $dir = $parentDir;
-    }
-    
-    return null;
-}
+// Load ProjectRootFinderService first (before autoloader)
+require_once dirname(__DIR__).'/Service/ProjectRootFinderService.php';
 
-$projectRoot = findProjectRoot(__DIR__);
+use Parallite\Service\ProjectRootFinderService;
 
-if ($projectRoot === null) {
-    error_log('[Worker] Failed to find project root');
-    exit(1);
-}
+$projectRoot = ProjectRootFinderService::find(__DIR__);
 
 // Load autoloader
 $autoloadPath = $projectRoot.'/vendor/autoload.php';
