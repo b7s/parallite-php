@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 use Parallite\ParalliteClient;
 
-echo "...\n";
-echo "🚀 Starting 10-minute parallel execution test...\n";
-echo "⏰ Start time: ".date('H:i:s')."\n";
+if(getenv('RUN_LONG_TESTS'))
+{
+    echo "...\n";
+    echo "🚀 Starting 10-minute parallel execution test...\n";
+    echo "⏰ Start time: ".date('H:i:s')."\n";
+}
 
 describe('Long Running Memory Leak Test', function () {
     it('executes parallel tasks for 10 minutes and verifies daemon cleanup', function () {
         // Disable PHP timeout for long-running test
         set_time_limit(0);
-        
+
         // Resource limits per worker
-        $maxMemoryMb = 50; // Maximum memory consumption per worker in MB
+        $maxMemoryMb = 64; // Maximum memory consumption per worker in MB
         $minCpuPercent = 2; // Minimum CPU usage percentage per worker
-        
+
         $client = new ParalliteClient(autoManageDaemon: true, enableBenchmark: true);
 
         // Get initial process count
@@ -24,24 +27,24 @@ describe('Long Running Memory Leak Test', function () {
 
         echo "📊 Initial Parallite processes: {$initialProcessCount}\n";
         echo "⚙️  Resource limits: Max Memory={$maxMemoryMb}MB, Min CPU={$minCpuPercent}%\n\n";
-        
+
         $startTime = time();
         $endTime = $startTime + (10 * 60); // 10 minutes
         $batchCount = 0;
         $totalTasks = 0;
-        
+
         // Benchmark aggregation
         $totalExecutionTime = 0;
         $totalMemoryDelta = 0;
         $totalMemoryPeak = 0;
         $totalCpuTime = 0;
         $benchmarkCount = 0;
-        
+
         // Run tasks for 10 minutes
         while (time() < $endTime) {
             $batchCount++;
             $batchStart = microtime(true);
-            
+
             // Execute 10 parallel tasks per batch
             $promises = [];
             for ($i = 0; $i < 10; $i++) {
@@ -49,15 +52,15 @@ describe('Long Running Memory Leak Test', function () {
                     // Random memory allocation (between 1MB and maxMemoryMb)
                     $targetMemoryMb = rand(1, $maxMemoryMb);
                     $memoryData = [];
-                    
+
                     // Allocate memory in chunks to reach target
                     $chunkSize = 1024 * 100; // 100KB chunks
                     $chunksNeeded = (int) (($targetMemoryMb * 1024 * 1024) / $chunkSize);
-                    
+
                     for ($m = 0; $m < $chunksNeeded; $m++) {
                         $memoryData[] = str_repeat('x', $chunkSize);
                     }
-                    
+
                     // Calculate CPU work duration based on minCpuPercent
                     // For 2% CPU over 3 seconds, we need ~60ms of actual CPU work
                     $workDuration = rand(2, 4); // Total duration: 2-4 seconds
