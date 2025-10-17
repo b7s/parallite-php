@@ -23,6 +23,7 @@
 - 🔧 **Configurable** - Fine-tune worker pools, timeouts, and more
 - 📝 **Configuration** - Load Daemon configuration and PHP required files from parallite.json (optional)
 - 📚 **Documentation** - Comprehensive API reference and examples
+- 🧪  **Tests** - Full Testing Suite, with real-world examples
 
 ## 📋 Requirements
 
