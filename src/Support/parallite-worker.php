@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 
 // Load ProjectRootFinderService first (before autoloader)
-require_once dirname(__DIR__).'/Service/ProjectRootFinderService.php';
+require_once dirname(__DIR__) . '/Service/ProjectRootFinderService.php';
 
 use MessagePack\MessagePack;
 use Parallite\Service\ProjectRootFinderService;
@@ -17,9 +17,9 @@ use Parallite\Service\ProjectRootFinderService;
 $projectRoot = ProjectRootFinderService::find(__DIR__);
 
 // Load autoloader
-$autoloadPath = $projectRoot.'/vendor/autoload.php';
-if (! file_exists($autoloadPath)) {
-    error_log('[Worker] Autoloader not found at: '.$autoloadPath);
+$autoloadPath = $projectRoot . '/vendor/autoload.php';
+if (!file_exists($autoloadPath)) {
+    error_log('[Worker] Autoloader not found at: ' . $autoloadPath);
     exit(1);
 }
 
@@ -27,9 +27,9 @@ require_once $autoloadPath;
 
 // Load configuration and includes
 // Priority: 1. Client project root, 2. Package root
-$clientConfigPath = $projectRoot.'/parallite.json';
+$clientConfigPath = $projectRoot . '/parallite.json';
 $packageRoot = dirname(__DIR__, 2); // From src/Support/ to package root
-$packageConfigPath = $packageRoot.'/parallite.json';
+$packageConfigPath = $packageRoot . '/parallite.json';
 
 $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
 $configRoot = file_exists($clientConfigPath) ? $projectRoot : $packageRoot;
@@ -41,7 +41,7 @@ if (file_exists($configPath)) {
         error_log('[Worker] Failed to read config file');
     } else {
         $config = json_decode($configContent, true);
-        
+
         if (is_array($config)) {
             // Check if debug logs are enabled
             $debugLogs = $config['worker_debug_logs'] ?? false;
@@ -51,7 +51,7 @@ if (file_exists($configPath)) {
                     if (!is_string($include)) {
                         continue;
                     }
-                    $includePath = $configRoot.'/'.$include;
+                    $includePath = $configRoot . '/' . $include;
                     if (file_exists($includePath)) {
                         require_once $includePath;
                     }
@@ -63,14 +63,14 @@ if (file_exists($configPath)) {
 
 // Get worker name from environment
 $workerNameFromEnv = getenv('WORKER_NAME');
-$workerName = $workerNameFromEnv !== false ? $workerNameFromEnv : 'worker_'.getmypid();
+$workerName = $workerNameFromEnv !== false ? $workerNameFromEnv : 'worker_' . getmypid();
 $defaultBenchmark = $config['enable_benchmark'] ?? false;
 
 // Log function
 function workerLog(string $message): void
 {
     global $workerName, $debugLogs;
-    
+
     if ($debugLogs) {
         error_log("[$workerName] $message");
     }
@@ -114,17 +114,17 @@ while (true) {
     // Decode request
     try {
         $request = MessagePack::unpack($payload);
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         workerLog('Invalid request: failed to unpack MessagePack - ' . $e->getMessage());
         continue;
     }
-    
+
     if (!is_array($request)) {
         workerLog('Invalid request: not a valid array');
         continue;
     }
 
-    if (! isset($request['task_id'])) {
+    if (!isset($request['task_id'])) {
         workerLog('Invalid request: missing task_id');
         continue;
     }
@@ -136,26 +136,26 @@ while (true) {
     }
 
     // Check if request has payload (closure) or other format
-    if (! isset($request['payload'])) {
+    if (!isset($request['payload'])) {
         workerLog("Invalid request for task $taskId: missing payload (closure expected)");
-        
+
         // Send error response
         $response = [
             'ok' => false,
             'error' => 'Missing payload field. This worker expects serialized closures.',
             'task_id' => $taskId,
         ];
-        
+
         try {
             $responsePacked = MessagePack::pack($response);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             workerLog("Failed to pack response: {$e->getMessage()}");
             continue;
         }
         $responseLength = pack('N', strlen($responsePacked));
-        fwrite(STDOUT, $responseLength.$responsePacked);
+        fwrite(STDOUT, $responseLength . $responsePacked);
         fflush(STDOUT);
-        
+
         continue;
     }
 
@@ -175,7 +175,7 @@ while (true) {
     $benchmarkEnabled = $request['enable_benchmark'] ?? $defaultBenchmark;
 
     $benchmarkSource = isset($request['enable_benchmark']) ? 'request' : 'config';
-    workerLog("Benchmark enabled: ".($benchmarkEnabled ? 'true' : 'false')." (source: $benchmarkSource)");
+    workerLog("Benchmark enabled: " . ($benchmarkEnabled ? 'true' : 'false') . " (source: $benchmarkSource)");
 
     // Initialize benchmark metrics
     $benchmark = null;
@@ -199,7 +199,7 @@ while (true) {
         $closure = \Opis\Closure\unserialize($serialized);
         workerLog("Closure deserialized successfully");
 
-        if (! $closure instanceof Closure) {
+        if (!$closure instanceof Closure) {
             throw new RuntimeException('Deserialized payload is not a closure');
         }
 
@@ -272,20 +272,20 @@ while (true) {
             'task_id' => $taskId,
         ];
 
-        workerLog("Task $taskId failed: ".$e->getMessage());
+        workerLog("Task $taskId failed: " . $e->getMessage());
     }
 
     // Send response
     workerLog("Sending response for task: {$taskId}");
     try {
         $responsePacked = MessagePack::pack($response);
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         workerLog("Failed to pack response for task {$taskId}: {$e->getMessage()}");
         continue;
     }
     $responseLength = pack('N', strlen($responsePacked));
 
-    fwrite(STDOUT, $responseLength.$responsePacked);
+    fwrite(STDOUT, $responseLength . $responsePacked);
     fflush(STDOUT);
     workerLog("Response sent for task: $taskId");
 }

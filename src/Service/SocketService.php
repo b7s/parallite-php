@@ -12,7 +12,7 @@ use Throwable;
 
 /**
  * Service responsible for socket communication with Parallite daemon
- * 
+ *
  * Supports both Unix domain sockets (Linux/macOS) and TCP sockets (Windows).
  * Socket type is auto-detected based on path format:
  * - Unix socket: /path/to/socket.sock
@@ -23,12 +23,13 @@ final readonly class SocketService
     public function __construct(
         private string $socketPath,
         private bool   $enableBenchmark = false
-    ) {
+    )
+    {
     }
 
     /**
      * Submit a task for parallel execution
-     * 
+     *
      * @param Closure $closure The closure to execute
      * @return array{socket: Socket, task_id: string}
      * @throws RuntimeException
@@ -44,7 +45,7 @@ final readonly class SocketService
             }
 
             [$host, $port] = $parts;
-            $port = (int) $port;
+            $port = (int)$port;
 
             $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 
@@ -55,8 +56,7 @@ final readonly class SocketService
             if (!@socket_connect($socket, $host, $port)) {
                 throw new RuntimeException("Failed to connect to daemon at: {$host}:{$port}");
             }
-        }
-        else {
+        } else {
             // Unix domain socket (Linux/macOS)
             $socket = socket_create(AF_UNIX, SOCK_STREAM, 0);
 
@@ -85,7 +85,7 @@ final readonly class SocketService
 
         try {
             $message = MessagePack::pack($messageData);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             throw new RuntimeException('Failed to encode message: ' . $e->getMessage());
         }
 
@@ -104,7 +104,7 @@ final readonly class SocketService
 
     /**
      * Await the result of a previously submitted task
-     * 
+     *
      * @param array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>} $future
      * @param-out array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>} $future
      * @return mixed
@@ -126,10 +126,10 @@ final readonly class SocketService
 
         try {
             $data = MessagePack::unpack($response);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             throw new RuntimeException('Invalid response from daemon: ' . $e->getMessage());
         }
-        
+
         if (!is_array($data)) {
             throw new RuntimeException('Invalid response from daemon: not an array');
         }
@@ -149,7 +149,7 @@ final readonly class SocketService
 
     /**
      * Read a frame from socket (4-byte big-endian length + data)
-     * 
+     *
      * @throws RuntimeException
      */
     private function readFrame(Socket $socket): string

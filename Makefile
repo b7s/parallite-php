@@ -77,6 +77,7 @@ release:
 	echo "🔍 Checking for uncommitted changes..."; \
 	if ! git diff --quiet || ! git diff --cached --quiet; then \
 		echo "📝 Found uncommitted changes. Staging files..."; \
+		echo "$$VERSION_INPUT" > version; \
 		git add -A; \
 		echo "💾 Creating commit..."; \
 		git commit -m "$$MESSAGE_INPUT" || true; \
@@ -91,7 +92,6 @@ release:
 	git tag -a v$$VERSION_INPUT -m "$$MESSAGE_INPUT"; \
 	echo "🚀 Pushing tag to origin..."; \
 	git push origin v$$VERSION_INPUT; \
-	echo "$$VERSION_INPUT" > version; \
 	echo ""; \
 	echo "✅ Release v$$VERSION_INPUT created successfully!"; \
 	echo "📦 Packagist will automatically detect the new version."; \
