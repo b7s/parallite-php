@@ -11,12 +11,17 @@ use Throwable;
 
 /**
  * Service responsible for socket communication with Parallite daemon
+ * 
+ * Supports both Unix domain sockets (Linux/macOS) and TCP sockets (Windows).
+ * Socket type is auto-detected based on path format:
+ * - Unix socket: /path/to/socket.sock
+ * - TCP socket: host:port (e.g., 127.0.0.1:9876)
  */
-final class SocketService
+final readonly class SocketService
 {
     public function __construct(
-        private readonly string $socketPath,
-        private readonly bool $enableBenchmark = false
+        private string $socketPath,
+        private bool   $enableBenchmark = false
     ) {
     }
 
@@ -29,14 +34,38 @@ final class SocketService
      */
     public function submitTask(Closure $closure): array
     {
-        $socket = socket_create(AF_UNIX, SOCK_STREAM, 0);
+        if (ConfigService::isWindows()) {
+            // TCP socket (Windows or explicit TCP)
+            // Expected format: host:port (e.g., 127.0.0.1:9876)
+            $parts = explode(':', $this->socketPath);
+            if (count($parts) !== 2) {
+                throw new RuntimeException('Invalid TCP socket path format. Expected host:port');
+            }
 
-        if ($socket === false) {
-            throw new RuntimeException('Failed to create socket');
+            [$host, $port] = $parts;
+            $port = (int) $port;
+
+            $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+
+            if ($socket === false) {
+                throw new RuntimeException('Failed to create TCP socket');
+            }
+
+            if (!@socket_connect($socket, $host, $port)) {
+                throw new RuntimeException("Failed to connect to daemon at: {$host}:{$port}");
+            }
         }
-        
-        if (!@socket_connect($socket, $this->socketPath)) {
-            throw new RuntimeException('Failed to connect to daemon at: ' . $this->socketPath);
+        else {
+            // Unix domain socket (Linux/macOS)
+            $socket = socket_create(AF_UNIX, SOCK_STREAM, 0);
+
+            if ($socket === false) {
+                throw new RuntimeException('Failed to create Unix socket');
+            }
+
+            if (!@socket_connect($socket, $this->socketPath)) {
+                throw new RuntimeException('Failed to connect to daemon at: ' . $this->socketPath);
+            }
         }
 
         $taskId = $this->generateTaskId();
@@ -48,13 +77,13 @@ final class SocketService
             'payload' => base64_encode($serialized),
             'context' => [],
         ];
-        
+
         if ($this->enableBenchmark) {
             $messageData['enable_benchmark'] = true;
         }
-        
+
         $message = json_encode($messageData);
-        
+
         if ($message === false) {
             throw new RuntimeException('Failed to encode message');
         }
