@@ -1,4 +1,4 @@
-.PHONY: help install test test-unit test-types test-coverage release
+.PHONY: help install test test-unit test-types test-coverage test-plugin release
 
 RELEASE_VERSION := $(if $(VERSION),$(VERSION),$(version))
 RELEASE_MESSAGE := $(if $(MESSAGE),$(MESSAGE),$(message))
@@ -11,6 +11,7 @@ help:
 	@echo "  make test-unit       - Run unit tests only"
 	@echo "  make test-types      - Run PHPStan static analysis"
 	@echo "  make test-coverage   - Run tests with coverage report"
+	@echo "  make test-plugin     - Test Composer plugin in fresh project"
 	@echo "  make release version=x.y.z message='msg' - Run tests and tag release"
 	@echo "  make clean           - Clean cache and temporary files"
 
@@ -44,6 +45,11 @@ test-type-coverage:
 test-coverage:
 	@echo "📊 Running tests with coverage..."
 	composer test:coverage
+
+# Test Composer plugin in fresh project
+test-plugin:
+	@echo "🔌 Testing Composer plugin..."
+	./test-plugin.sh
 
 # Create a tagged release (requires clean working tree)
 release:

@@ -22,8 +22,21 @@ jobs:
           php-version: '8.3'
           extensions: sockets, zip
 
+      - name: Validate composer.json
+        run: composer validate --strict
+
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist
+
+      - name: Verify Binary Installation
+        run: |
+          if [ -f vendor/bin/parallite ]; then
+            echo "✓ Parallite binary installed successfully"
+            vendor/bin/parallite --version || true
+          else
+            echo "✗ Parallite binary not found"
+            exit 1
+          fi
 
       - name: Run Tests
         run: composer test

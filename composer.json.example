@@ -1,0 +1,16 @@
+{
+    "name": "your-vendor/your-project",
+    "description": "Example project using Parallite",
+    "require": {
+        "php": "^8.3",
+        "parallite/parallite-php": "^1.2"
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php vendor/parallite/parallite-php/install-binary.php"
+        ],
+        "post-update-cmd": [
+            "@php vendor/parallite/parallite-php/install-binary.php"
+        ]
+    }
+}

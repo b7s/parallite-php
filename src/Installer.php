@@ -61,8 +61,16 @@ final class Installer
      */
     private static function getBinPath(): string
     {
-        // Find project root by looking for vendor/autoload.php
-        $projectRoot = ProjectRootFinderService::find(__DIR__);
+        // When called from vendor/bin/parallite-install, use the current working directory
+        // This ensures we install in the project that's using parallite, not in parallite's own vendor
+        $cwd = getcwd();
+        if ($cwd !== false && file_exists($cwd.'/vendor/autoload.php')) {
+            $projectRoot = $cwd;
+        } else {
+            // Fallback: Find project root by looking for vendor/autoload.php
+            $projectRoot = ProjectRootFinderService::find(__DIR__);
+        }
+        
         $vendorBin = $projectRoot.'/vendor/bin';
 
         if (! is_dir($vendorBin)) {

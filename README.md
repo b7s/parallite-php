@@ -40,21 +40,47 @@ Install via Composer:
 composer require parallite/parallite-php
 ```
 
-The Parallite binary will be automatically downloaded and installed during `composer install`.
+After installation, install the Parallite binary. This Go binary serves as the **daemon orchestrator**, managing worker processes and coordinating parallel task execution ([learn more](https://github.com/b7s/parallite)).
 
-### Manual Binary Installation
+### Option 1: Automatic Installation (Recommended)
 
-If needed, you can manually install or update the binary:
+Add this two PHP commands to your project's `composer.json`:
+
+```json
+{
+    "scripts": {
+        "post-install-cmd": [
+            "@php vendor/parallite/parallite-php/bin/parallite-install"
+        ],
+        "post-update-cmd": [
+            "@php vendor/parallite/parallite-php/bin/parallite-update"
+        ]
+    }
+}
+```
+
+> **Tip**: See [`composer.json.example`](composer.json.example) for a complete example.
+
+Then run:
 
 ```bash
-# Install binary
-composer parallite:install
+composer install
+```
 
-# Update to latest version
-composer parallite:update
+The binary will be automatically installed at `vendor/bin/parallite`.
 
-# Force reinstall
-composer parallite:install -- --force
+### Option 2: One-Time Installation
+
+Run the installer script once:
+
+```bash
+php vendor/parallite/parallite-php/bin/parallite-install
+```
+
+If you want to update the binary:
+
+```bash
+php vendor/parallite/parallite-php/bin/parallite-update
 ```
 
 ## 🚀 Quick Start

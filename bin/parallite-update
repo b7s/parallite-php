@@ -3,7 +3,21 @@
 
 declare(strict_types=1);
 
-require_once __DIR__.'/../vendor/autoload.php';
+// Find the autoloader - works both in development and when installed as dependency
+foreach ([
+    __DIR__.'/../vendor/autoload.php',
+    __DIR__.'/../../../autoload.php',
+] as $file) {
+    if (file_exists($file)) {
+        require_once $file;
+        break;
+    }
+}
+
+if (!class_exists('Parallite\Installer')) {
+    echo "Error: Could not find Parallite autoloader.\n";
+    exit(1);
+}
 
 use Parallite\Installer;
 
