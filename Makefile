@@ -80,10 +80,10 @@ release:
 	fi; \
 	echo "🧪 Running full test suite..."; \
 	composer test || (echo "❌ Tests failed. Fix issues before releasing." && exit 1); \
+	echo "🚀 Pushing commits to origin..."; \
+	git push origin HEAD || echo "⚠️  No commits to push (working tree was clean)"; \
 	echo "🏷️  Creating tag v$$VERSION_INPUT..."; \
 	git tag -a v$$VERSION_INPUT -m "$$MESSAGE_INPUT"; \
-	echo "🚀 Pushing commits to origin..."; \
-	git push origin HEAD || true; \
 	echo "🚀 Pushing tag to origin..."; \
 	git push origin v$$VERSION_INPUT; \
 	echo ""; \
