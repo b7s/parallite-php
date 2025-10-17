@@ -4,19 +4,26 @@ declare(strict_types=1);
 
 use Parallite\ParalliteClient;
 
+echo "...\n";
+echo "🚀 Starting 10-minute parallel execution test...\n";
+echo "⏰ Start time: ".date('H:i:s')."\n";
+
 describe('Long Running Memory Leak Test', function () {
     it('executes parallel tasks for 10 minutes and verifies daemon cleanup', function () {
         // Disable PHP timeout for long-running test
         set_time_limit(0);
         
-        $client = new ParalliteClient(autoManageDaemon: true, enableBenchmark: true);
+        // Resource limits per worker
+        $maxMemoryMb = 50; // Maximum memory consumption per worker in MB
+        $minCpuPercent = 2; // Minimum CPU usage percentage per worker
         
+        $client = new ParalliteClient(autoManageDaemon: true, enableBenchmark: true);
+
         // Get initial process count
         $initialProcessCount = getParalliteProcessCount();
-        
-        echo "\n🚀 Starting 10-minute parallel execution test...\n";
-        echo "⏰ Start time: ".date('H:i:s')."\n";
-        echo "📊 Initial Parallite processes: {$initialProcessCount}\n\n";
+
+        echo "📊 Initial Parallite processes: {$initialProcessCount}\n";
+        echo "⚙️  Resource limits: Max Memory={$maxMemoryMb}MB, Min CPU={$minCpuPercent}%\n\n";
         
         $startTime = time();
         $endTime = $startTime + (10 * 60); // 10 minutes
@@ -38,22 +45,54 @@ describe('Long Running Memory Leak Test', function () {
             // Execute 10 parallel tasks per batch
             $promises = [];
             for ($i = 0; $i < 10; $i++) {
-                $promises[] = $client->promise(function () use ($i, $batchCount) {
-                    // Simulate work that takes a few seconds
-                    $workDuration = rand(2, 4); // 2-4 seconds
-                    sleep($workDuration);
+                $promises[] = $client->promise(function () use ($i, $batchCount, $maxMemoryMb, $minCpuPercent) {
+                    // Random memory allocation (between 1MB and maxMemoryMb)
+                    $targetMemoryMb = rand(1, $maxMemoryMb);
+                    $memoryData = [];
                     
-                    // Do some computation
-                    $result = 0;
-                    for ($j = 0; $j < 1000; $j++) {
-                        $result += $j * $i;
+                    // Allocate memory in chunks to reach target
+                    $chunkSize = 1024 * 100; // 100KB chunks
+                    $chunksNeeded = (int) (($targetMemoryMb * 1024 * 1024) / $chunkSize);
+                    
+                    for ($m = 0; $m < $chunksNeeded; $m++) {
+                        $memoryData[] = str_repeat('x', $chunkSize);
                     }
+                    
+                    // Calculate CPU work duration based on minCpuPercent
+                    // For 2% CPU over 3 seconds, we need ~60ms of actual CPU work
+                    $workDuration = rand(2, 4); // Total duration: 2-4 seconds
+                    $cpuWorkMs = (int) ($workDuration * 1000 * ($minCpuPercent / 100));
+                    $cpuWorkMs = max($cpuWorkMs, 50); // Minimum 50ms of CPU work
+                    
+                    $startTime = microtime(true);
+                    $cpuEndTime = $startTime + ($cpuWorkMs / 1000);
+                    
+                    // CPU-intensive computation
+                    $result = 0;
+                    while (microtime(true) < $cpuEndTime) {
+                        for ($j = 0; $j < 10000; $j++) {
+                            $result += sqrt($j * $i + 1);
+                            $result = $result % 1000000; // Prevent overflow
+                        }
+                    }
+                    
+                    // Sleep for the remaining time to reach workDuration
+                    $elapsed = microtime(true) - $startTime;
+                    $remainingSleep = $workDuration - $elapsed;
+                    if ($remainingSleep > 0) {
+                        usleep((int) ($remainingSleep * 1000000));
+                    }
+                    
+                    $actualMemoryMb = round(memory_get_usage(true) / 1024 / 1024, 2);
                     
                     return [
                         'batch' => $batchCount,
                         'task' => $i,
                         'work_duration' => $workDuration,
-                        'result' => $result,
+                        'target_memory_mb' => $targetMemoryMb,
+                        'actual_memory_mb' => $actualMemoryMb,
+                        'cpu_work_ms' => $cpuWorkMs,
+                        'result' => (int) $result,
                         'timestamp' => time(),
                     ];
                 });
@@ -84,7 +123,10 @@ describe('Long Running Memory Leak Test', function () {
                     ->and($result['batch'])->toBe($batchCount)
                     ->and($result['task'])->toBe($idx)
                     ->and($result['work_duration'])->toBeGreaterThanOrEqual(2)
-                    ->and($result['work_duration'])->toBeLessThanOrEqual(4);
+                    ->and($result['work_duration'])->toBeLessThanOrEqual(4)
+                    ->and($result['target_memory_mb'])->toBeGreaterThanOrEqual(1)
+                    ->and($result['target_memory_mb'])->toBeLessThanOrEqual($maxMemoryMb)
+                    ->and($result['cpu_work_ms'])->toBeGreaterThanOrEqual(50);
             }
             
             // Log progress after each batch
