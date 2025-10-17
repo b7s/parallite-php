@@ -22,7 +22,19 @@ if (!class_exists('Parallite\Installer')) {
 use Parallite\Installer;
 
 try {
-    Installer::update();
+    // Check for --force flag
+    $force = in_array('--force', $argv, true);
+    
+    // Check for --version parameter
+    $version = null;
+    foreach ($argv as $arg) {
+        if (str_starts_with($arg, '--version=')) {
+            $version = substr($arg, strlen('--version='));
+            break;
+        }
+    }
+    
+    Installer::update(force: $force, version: $version);
     exit(0);
 } catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
