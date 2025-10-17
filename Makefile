@@ -53,7 +53,12 @@ test-plugin:
 
 # Create a tagged release (auto-commits changes if any)
 release:
-	@VERSION_INPUT="$(RELEASE_VERSION)"; \
+	@if [ -f version ]; then \
+		LAST_VERSION=$$(cat version); \
+		echo "📌 Last version: v$$LAST_VERSION"; \
+		echo ""; \
+	fi; \
+	VERSION_INPUT="$(RELEASE_VERSION)"; \
 	if [ -z "$$VERSION_INPUT" ]; then \
 		read -p "Enter release version (format x.y.z): " VERSION_INPUT; \
 	fi; \
@@ -86,6 +91,7 @@ release:
 	git tag -a v$$VERSION_INPUT -m "$$MESSAGE_INPUT"; \
 	echo "🚀 Pushing tag to origin..."; \
 	git push origin v$$VERSION_INPUT; \
+	echo "$$VERSION_INPUT" > version; \
 	echo ""; \
 	echo "✅ Release v$$VERSION_INPUT created successfully!"; \
 	echo "📦 Packagist will automatically detect the new version."; \
