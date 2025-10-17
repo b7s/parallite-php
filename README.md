@@ -77,7 +77,11 @@ The binary will be automatically installed at `vendor/bin/parallite`.
 Run the installer script once:
 
 ```bash
+# Install latest version
 php vendor/parallite/parallite-php/bin/parallite-install
+
+# Install a specific version
+php vendor/parallite/parallite-php/bin/parallite-install --version=1.2.3
 ```
 
 If you want to update the binary:

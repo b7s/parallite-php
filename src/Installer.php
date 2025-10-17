@@ -20,9 +20,17 @@ final class Installer
      * Install the Parallite binary for the current platform.
      *
      * @param bool $force Force reinstall even if binary exists
+     * @param string|null $version Specific version to install (e.g., '1.2.3' or 'v1.2.3')
      */
-    public static function install(bool $force = false): void
+    public static function install(bool $force = false, ?string $version = null): void
     {
+        if ($version !== null) {
+            $version = ltrim($version, 'v');
+            echo "[Force] Installing specific version: {$version}...\n";
+            self::installVersion($version);
+            return;
+        }
+
         $binPath = self::getBinPath();
 
         if (! $force && file_exists($binPath)) {
@@ -59,7 +67,7 @@ final class Installer
         // If specific version is requested, install it directly
         if ($version !== null) {
             $version = ltrim($version, 'v');
-            echo "Installing specific version: {$version}...\n";
+            echo "[Force] Installing specific version: {$version}...\n";
             self::installVersion($version);
             return;
         }
