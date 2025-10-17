@@ -11,6 +11,7 @@ declare(strict_types=1);
 // Load ProjectRootFinderService first (before autoloader)
 require_once dirname(__DIR__).'/Service/ProjectRootFinderService.php';
 
+use MessagePack\MessagePack;
 use Parallite\Service\ProjectRootFinderService;
 
 $projectRoot = ProjectRootFinderService::find(__DIR__);
@@ -111,9 +112,15 @@ while (true) {
     }
 
     // Decode request
-    $request = json_decode($payload, true);
+    try {
+        $request = MessagePack::unpack($payload);
+    } catch (\Throwable $e) {
+        workerLog('Invalid request: failed to unpack MessagePack - ' . $e->getMessage());
+        continue;
+    }
+    
     if (!is_array($request)) {
-        workerLog('Invalid request: not a valid JSON array');
+        workerLog('Invalid request: not a valid array');
         continue;
     }
 
@@ -139,12 +146,14 @@ while (true) {
             'task_id' => $taskId,
         ];
         
-        $responseJson = json_encode($response);
-        if ($responseJson === false) {
+        try {
+            $responsePacked = MessagePack::pack($response);
+        } catch (\Throwable $e) {
+            workerLog("Failed to pack response: {$e->getMessage()}");
             continue;
         }
-        $responseLength = pack('N', strlen($responseJson));
-        fwrite(STDOUT, $responseLength.$responseJson);
+        $responseLength = pack('N', strlen($responsePacked));
+        fwrite(STDOUT, $responseLength.$responsePacked);
         fflush(STDOUT);
         
         continue;
@@ -154,13 +163,9 @@ while (true) {
         workerLog("Invalid request for task {$taskId}: payload is not a string");
         continue;
     }
-    
-    $serialized = base64_decode($request['payload'], true);
-    if ($serialized === false) {
-        workerLog("Invalid request for task {$taskId}: failed to decode base64");
-        continue;
-    }
-    
+
+    $serialized = $request['payload'];
+
     $context = $request['context'] ?? [];
 
     workerLog("Executing task: $taskId");
@@ -177,7 +182,7 @@ while (true) {
     $startTime = 0.0;
     $startMemory = 0;
     $startRusage = null;
-    
+
     if ($benchmarkEnabled) {
         $startTime = microtime(true);
         // Use real memory (not allocated blocks) for delta calculation
@@ -201,11 +206,11 @@ while (true) {
         // Execute closure
         workerLog("Executing closure...");
         $result = $closure();
-        
+
         // Capture memory immediately after execution (before GC)
         $memoryAfterExecution = memory_get_usage(false);
         $peakAfterExecution = memory_get_peak_usage(false);
-        
+
         workerLog("Closure executed successfully");
 
         // Collect benchmark metrics if enabled
@@ -272,14 +277,15 @@ while (true) {
 
     // Send response
     workerLog("Sending response for task: {$taskId}");
-    $responseJson = json_encode($response);
-    if ($responseJson === false) {
-        workerLog("Failed to encode response for task: {$taskId}");
+    try {
+        $responsePacked = MessagePack::pack($response);
+    } catch (\Throwable $e) {
+        workerLog("Failed to pack response for task {$taskId}: {$e->getMessage()}");
         continue;
     }
-    $responseLength = pack('N', strlen($responseJson));
+    $responseLength = pack('N', strlen($responsePacked));
 
-    fwrite(STDOUT, $responseLength.$responseJson);
+    fwrite(STDOUT, $responseLength.$responsePacked);
     fflush(STDOUT);
     workerLog("Response sent for task: $taskId");
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Parallite\Service;
 
 use Closure;
+use MessagePack\MessagePack;
 use RuntimeException;
 use Socket;
 use Throwable;
@@ -72,9 +73,9 @@ final readonly class SocketService
         $serialized = \Opis\Closure\serialize($closure);
 
         $messageData = [
-            'action' => 'submit',
+            'type' => 'submit',
             'task_id' => $taskId,
-            'payload' => base64_encode($serialized),
+            'payload' => $serialized,
             'context' => [],
         ];
 
@@ -82,10 +83,10 @@ final readonly class SocketService
             $messageData['enable_benchmark'] = true;
         }
 
-        $message = json_encode($messageData);
-
-        if ($message === false) {
-            throw new RuntimeException('Failed to encode message');
+        try {
+            $message = MessagePack::pack($messageData);
+        } catch (\Throwable $e) {
+            throw new RuntimeException('Failed to encode message: ' . $e->getMessage());
         }
 
         $length = pack('N', strlen($message));
@@ -123,9 +124,14 @@ final readonly class SocketService
             socket_close($socket);
         }
 
-        $data = json_decode($response, true);
+        try {
+            $data = MessagePack::unpack($response);
+        } catch (\Throwable $e) {
+            throw new RuntimeException('Invalid response from daemon: ' . $e->getMessage());
+        }
+        
         if (!is_array($data)) {
-            throw new RuntimeException('Invalid response from daemon');
+            throw new RuntimeException('Invalid response from daemon: not an array');
         }
 
         if (!isset($data['ok']) || $data['ok'] !== true) {

@@ -11,10 +11,11 @@
         }
     ],
     "require": {
-      "php": "^8.3",
-      "opis/closure": "^4.3",
-      "ext-sockets": "*",
-      "ext-zip": "*"
+        "php": "^8.3",
+        "ext-sockets": "*",
+        "ext-zip": "*",
+        "opis/closure": "^4.3",
+        "rybakit/msgpack": "^0.9.1"
     },
     "require-dev": {
         "pestphp/pest": "^4.0",

@@ -798,8 +798,6 @@ Parallite uses **MessagePack** instead of JSON for communication between PHP and
 
 This makes Parallite one of the fastest parallel execution libraries for PHP.
 
-> **Note**: The Go daemon must support MessagePack protocol. See [MSGPACK_MIGRATION.md](MSGPACK_MIGRATION.md) for implementation details.
-
 ## 🙏 Credits
 
 - **Parallite Daemon**: [b7s/parallite](https://github.com/b7s/parallite)
