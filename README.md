@@ -9,7 +9,8 @@
 [![PHP Version](https://img.shields.io/packagist/php-v/parallite/parallite-php.svg?style=flat-square)](https://packagist.org/packages/parallite/parallite-php)
 [![License](https://img.shields.io/packagist/l/parallite/parallite-php.svg?style=flat-square)](https://packagist.org/packages/parallite/parallite-php)
 
-**Execute PHP closures in true parallel** - A standalone PHP client for [Parallite](https://github.com/b7s/parallite), enabling real parallel execution of PHP code without the limitations of traditional PHP concurrency.
+**Execute PHP closures in true parallel** - A standalone PHP client for [Parallite](https://github.com/b7s/parallite),
+enabling real parallel execution of PHP code without the limitations of traditional PHP concurrency.
 
 ## ✨ Features
 
@@ -42,7 +43,8 @@ Install via Composer:
 composer require parallite/parallite-php
 ```
 
-After installation, install the Parallite binary. This little Go binary serves as the **daemon orchestrator**, managing worker processes and coordinating parallel task execution ([learn more](https://github.com/b7s/parallite)).
+After installation, install the Parallite binary. This little Go binary serves as the **daemon orchestrator**, managing
+worker processes and coordinating parallel task execution ([learn more](https://github.com/b7s/parallite)).
 
 ### Option 1: Automatic Installation (Recommended)
 
@@ -50,14 +52,14 @@ Add this two PHP commands to your project's `composer.json`:
 
 ```json
 {
-    "scripts": {
-        "post-install-cmd": [
-            "@php vendor/parallite/parallite-php/bin/parallite-install"
-        ],
-        "post-update-cmd": [
-            "@php vendor/parallite/parallite-php/bin/parallite-update"
-        ]
-    }
+  "scripts": {
+    "post-install-cmd": [
+      "@php vendor/parallite/parallite-php/bin/parallite-install"
+    ],
+    "post-update-cmd": [
+      "@php vendor/parallite/parallite-php/bin/parallite-update"
+    ]
+  }
 }
 ```
 
@@ -67,6 +69,9 @@ Then run:
 
 ```bash
 composer install
+
+# or update
+composer update
 ```
 
 The binary will be automatically installed at `vendor/bin/parallite`.
@@ -151,18 +156,19 @@ echo $result; // Caught: Task failed: Oops!
 
 **That's it!** The daemon is automatically managed - no manual setup or imports needed!
 
-
 ## ⚡ MessagePack Transport
 
-Parallite now (v2+) communicates with the Go daemon using **MessagePack** instead of JSON. This binary protocol delivers:
+Parallite now (v2+) communicates with the Go daemon using **MessagePack** instead of JSON. This binary protocol
+delivers:
 
 - **2-5x faster** encoding/decoding compared to JSON
 - **30-50% smaller** payloads, reducing I/O overhead
 - **40-50% lower** CPU usage in high-throughput workloads
 - Native binary support without base64 conversions
 
-The PHP client ships with [`rybakit/msgpack.php`](https://github.com/rybakit/msgpack.php) and the daemon uses [`vmihailenco/msgpack`](https://github.com/vmihailenco/msgpack), guaranteeing full compatibility. Update your daemon to the latest release to benefit from the new protocol.
-
+The PHP client ships with [`rybakit/msgpack.php`](https://github.com/rybakit/msgpack.php) and the daemon uses [
+`vmihailenco/msgpack`](https://github.com/vmihailenco/msgpack), guaranteeing full compatibility. Update your daemon to
+the latest release to benefit from the new protocol.
 
 ## 📚 Usage Examples
 
@@ -297,12 +303,14 @@ Create a `parallite.json` file in your project root:
 ### Configuration Options
 
 **PHP Settings:**
+
 - **`php_includes`** (array): PHP files to include in worker processes (e.g., autoloader, bootstrap)
 - **`enable_benchmark`** (bool): Enable benchmark mode globally (default: false)
     - When `true`, all tasks will include benchmark data unless explicitly disabled
     - Can be overridden per-task using the `$enableBenchmark` parameter in `async()`
 
 **Go Daemon Settings (`go_overrides`):**
+
 - **`timeout_ms`** (int): Task timeout in milliseconds (default: 30000)
 - **`fixed_workers`** (int): Number of worker processes (default: 0 = auto)
 - **`prefix_name`** (string): Prefix for worker process names (default: "parallite_worker")
@@ -312,7 +320,8 @@ Create a `parallite.json` file in your project root:
 
 ### Helper Functions (Recommended)
 
-> **No Imports Required!** The `async()` and `await()` functions are available globally after `require 'vendor/autoload.php';`
+> **No Imports Required!** The `async()` and `await()` functions are available globally after
+`require 'vendor/autoload.php';`
 
 #### `async(Closure $closure, ?bool $enableBenchmark = null): Promise`
 
@@ -330,6 +339,7 @@ $promise = async(fn() => heavyTask(), enableBenchmark: false);
 ```
 
 **Parameters:**
+
 - `$closure`: The task to execute asynchronously
 - `$enableBenchmark`: Enable benchmark (null = read from `parallite.json`, true = force enable, false = force disable)
 
@@ -338,6 +348,7 @@ $promise = async(fn() => heavyTask(), enableBenchmark: false);
 **Returns:** `Promise` object with chainable methods
 
 **Features:**
+
 - Automatic daemon lifecycle management
 - No manual setup required
 - Shared client instance (efficient)
@@ -363,9 +374,11 @@ $results = await([
 ```
 
 **Parameters:**
+
 - `$promise`: Promise object, raw future array, or array containing Promise objects
 
 **Returns:**
+
 - Single result if given a single promise
 - Array of results if given an array (promises are resolved, other values pass through)
 
@@ -430,6 +443,7 @@ Parallite can collect detailed performance metrics for each task when benchmark 
 **Option 1: Global configuration (recommended for development)**
 
 Edit `parallite.json`:
+
 ```json
 {
   "enable_benchmark": true
@@ -437,6 +451,7 @@ Edit `parallite.json`:
 ```
 
 All tasks will include benchmark data:
+
 ```php
 $promise = async(fn() => task());  // Benchmark enabled from config
 $result = await($promise);
@@ -474,7 +489,8 @@ $client->enableBenchmark();
 
 ### Benchmark Data Structure
 
-When benchmark mode is enabled, the daemon returns additional performance metrics (shown here as a PHP array for readability—the on-the-wire format is MessagePack):
+When benchmark mode is enabled, the daemon returns additional performance metrics (shown here as a PHP array for
+readability—the on-the-wire format is MessagePack):
 
 ```php
 [
@@ -491,12 +507,14 @@ When benchmark mode is enabled, the daemon returns additional performance metric
 ```
 
 **Fields:**
+
 - `execution_time_ms`: Total execution time in milliseconds (always accurate)
 - `memory_delta_mb`: Memory change during task execution in MB (may be zero for tasks with automatic cleanup)
 - `memory_peak_mb`: Peak memory usage during task in MB (may be zero for small/fast tasks)
 - `cpu_time_ms`: Total CPU time (user + system) in milliseconds (always accurate)
 
-> **Note:** Memory metrics may show zero for tasks where PHP automatically frees memory. See "Understanding Memory Metrics" section for details.
+> **Note:** Memory metrics may show zero for tasks where PHP automatically frees memory. See "Understanding Memory
+> Metrics" section for details.
 
 ### Accessing Benchmark Data
 
@@ -544,6 +562,7 @@ if ($benchmark) {
 ### Example: Performance Benchmark
 
 See `examples/performance-benchmark.php` for a complete example that:
+
 - Measures execution time, memory usage, and CPU time
 - Tests different workload types (light, CPU-intensive, mixed, stress)
 - Validates parallel execution
@@ -567,18 +586,21 @@ The PHP worker is a **persistent process** that executes multiple tasks in a loo
 4. **Result**: Memory delta ≈ 0 for most tasks
 
 **Memory metrics reliability:**
+
 - ✅ `execution_time_ms`: Always accurate
 - ✅ `cpu_time_ms`: Always accurate
 - ⚠️ `memory_delta_mb`: May be zero for tasks that don't retain memory between measurements
 - ⚠️ `memory_peak_mb`: Captures significant peaks, but may be zero for small/fast tasks
 
 **When memory metrics are useful:**
+
 - Long-running tasks that accumulate data
 - Detecting memory leaks
 - Tasks that explicitly retain large objects
 - Comparing relative memory usage between different implementations
 
 **Example of measurable memory usage:**
+
 ```php
 $promise = async(function() {
     // This will show memory usage because data is retained until return
@@ -673,7 +695,8 @@ $client->stopDaemon();
 
 ## 🔧 Advanced: Using ParalliteClient Directly
 
-For advanced use cases where you need manual daemon control or custom socket paths, you can use `ParalliteClient` directly:
+For advanced use cases where you need manual daemon control or custom socket paths, you can use `ParalliteClient`
+directly:
 
 ```php
 use Parallite\ParalliteClient;
@@ -699,6 +722,7 @@ $results = $client->awaitAll([
 ```
 
 **When to use `ParalliteClient` directly:**
+
 - You need custom socket paths
 - You want manual daemon lifecycle control
 - You're integrating with existing code that manages daemons
@@ -708,21 +732,21 @@ $results = $client->awaitAll([
 
 ## 🌐 Platform Support
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **Linux** | ✅ Fully Supported | x86_64, ARM64 |
-| **macOS** | ✅ Fully Supported | Intel, Apple Silicon |
-| **Windows** | ✅ Fully Supported | x86_64, ARM64 |
+| Platform    | Status            | Notes                |
+|-------------|-------------------|----------------------|
+| **Linux**   | ✅ Fully Supported | x86_64, ARM64        |
+| **macOS**   | ✅ Fully Supported | Intel, Apple Silicon |
+| **Windows** | ✅ Fully Supported | x86_64, ARM64        |
 
 ## 📊 Performance
 
 Parallite provides significant speedup for I/O-bound and CPU-bound tasks:
 
-| Tasks | Sequential | Parallel | Speedup |
-|-------|-----------|----------|---------|
-| 3 × 1s | 3.0s | ~1.0s | **3.0x** |
-| 5 × 2s | 10.0s | ~2.0s | **5.0x** |
-| 10 × 1s | 10.0s | ~1.0s | **10.0x** |
+| Tasks   | Sequential | Parallel | Speedup   |
+|---------|------------|----------|-----------|
+| 3 × 1s  | 3.0s       | ~1.0s    | **3.0x**  |
+| 5 × 2s  | 10.0s      | ~2.0s    | **5.0x**  |
+| 10 × 1s | 10.0s      | ~1.0s    | **10.0x** |
 
 ### 🌟 Real-World Example
 
@@ -740,6 +764,7 @@ RUN_REAL_WORLD_TESTS=1 vendor/bin/pest tests/Feature/RealWorldDataProcessingTest
 ```
 
 This test showcases:
+
 - ✅ Fetching and processing data from JSONPlaceholder API
 - ✅ Parallel processing of 100+ photos with metadata extraction
 - ✅ Chunked processing of 200 todos with user analytics
@@ -747,6 +772,7 @@ This test showcases:
 - ✅ Detailed performance metrics and statistics
 
 **Example output:**
+
 ```
 🌐 Real World Data Processing Test
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
