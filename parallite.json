@@ -4,7 +4,7 @@
   "worker_debug_logs": false,
   "go_overrides": {
     "timeout_ms": 30000,
-    "fixed_workers": 0,
+    "fixed_workers": 1,
     "prefix_name": "parallite_worker",
     "fail_mode": "continue",
     "max_payload_bytes": 10485760
