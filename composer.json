@@ -46,7 +46,7 @@
         "post-update-cmd": [
             "@parallite:update"
         ],
-        "parallite:install": "php bin/parallite-install --version=1.2.0",
+        "parallite:install": "php bin/parallite-install",
         "parallite:update": "php bin/parallite-update",
         "test": [
             "@test:unit",
