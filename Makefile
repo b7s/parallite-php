@@ -12,7 +12,7 @@ help:
 	@echo "  make test-types      - Run PHPStan static analysis"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make test-plugin     - Test Composer plugin in fresh project"
-	@echo "  make release version=x.y.z message='msg' - Run tests and tag release"
+	@echo "  make release version=x.y.z message='msg' - Run tests and create Git tag"
 	@echo "  make clean           - Clean cache and temporary files"
 
 # Install dependencies
@@ -51,42 +51,45 @@ test-plugin:
 	@echo "🔌 Testing Composer plugin..."
 	./test-plugin.sh
 
-# Create a tagged release (requires clean working tree)
+# Create a tagged release (auto-commits changes if any)
 release:
-	@CURRENT_VERSION=$$(php -r 'echo json_decode(file_get_contents("composer.json"), true)["version"] ?? "0.0.0";'); \
-	echo "Current version: $$CURRENT_VERSION"; \
-	VERSION_INPUT="$(RELEASE_VERSION)"; \
+	@VERSION_INPUT="$(RELEASE_VERSION)"; \
 	if [ -z "$$VERSION_INPUT" ]; then \
-		read -p "Enter release version (format 0.0.0): " VERSION_INPUT; \
+		read -p "Enter release version (format x.y.z): " VERSION_INPUT; \
 	fi; \
 	if ! echo "$$VERSION_INPUT" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-		echo "Invalid version format. Expected 0.0.0"; exit 1; \
+		echo "❌ Invalid version format. Expected x.y.z (e.g., 1.3.0)"; exit 1; \
 	fi; \
-	echo "New version: $$VERSION_INPUT"; \
+	echo "📦 New version: v$$VERSION_INPUT"; \
 	MESSAGE_INPUT="$(RELEASE_MESSAGE)"; \
 	if [ -z "$$MESSAGE_INPUT" ]; then \
-		echo "Enter commit message (press Enter for default, Ctrl+D when done for multi-line):"; \
+		echo "Enter release message (press Enter for default, Ctrl+D when done for multi-line):"; \
 		MESSAGE_INPUT=$$(cat); \
 		if [ -z "$$MESSAGE_INPUT" ]; then \
-			MESSAGE_INPUT="chore: release v$$VERSION_INPUT"; \
+			MESSAGE_INPUT="Release v$$VERSION_INPUT"; \
 		fi; \
 	fi; \
-	echo "🔍 Checking working tree..."; \
-	git diff --quiet || (echo "Working tree is not clean" && exit 1); \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "📝 Found uncommitted changes. Staging files..."; \
+		git add -A; \
+		echo "💾 Creating commit..."; \
+		git commit -m "$$MESSAGE_INPUT" || true; \
+	else \
+		echo "✅ Working tree is clean."; \
+	fi; \
 	echo "🧪 Running full test suite..."; \
-	composer test; \
-	echo "📝 Updating composer.json version..."; \
-	composer config version "$$VERSION_INPUT"; \
-	echo "✅ Staging release files..."; \
-	git add -A; \
-	echo "📝 Creating release commit..."; \
-	git commit -m "$$MESSAGE_INPUT"; \
-	echo "🏷️ Creating tag v$$VERSION_INPUT..."; \
-	git tag -a v$$VERSION_INPUT -m "Release v$$VERSION_INPUT"; \
-	echo "🚀 Pushing commit..."; \
-	git push origin HEAD; \
-	echo "🚀 Pushing tag..."; \
-	git push origin v$$VERSION_INPUT
+	composer test || (echo "❌ Tests failed. Fix issues before releasing." && exit 1); \
+	echo "🏷️  Creating tag v$$VERSION_INPUT..."; \
+	git tag -a v$$VERSION_INPUT -m "$$MESSAGE_INPUT"; \
+	echo "🚀 Pushing commits to origin..."; \
+	git push origin HEAD || true; \
+	echo "🚀 Pushing tag to origin..."; \
+	git push origin v$$VERSION_INPUT; \
+	echo ""; \
+	echo "✅ Release v$$VERSION_INPUT created successfully!"; \
+	echo "📦 Packagist will automatically detect the new version."; \
+	echo "🔗 View release: https://github.com/parallite/parallite-php/releases/tag/v$$VERSION_INPUT"
 
 # Clean cache and temporary files
 clean:
