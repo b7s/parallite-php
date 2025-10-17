@@ -40,7 +40,7 @@ Install via Composer:
 composer require parallite/parallite-php
 ```
 
-After installation, install the Parallite binary. This Go binary serves as the **daemon orchestrator**, managing worker processes and coordinating parallel task execution ([learn more](https://github.com/b7s/parallite)).
+After installation, install the Parallite binary. This little Go binary serves as the **daemon orchestrator**, managing worker processes and coordinating parallel task execution ([learn more](https://github.com/b7s/parallite)).
 
 ### Option 1: Automatic Installation (Recommended)
 
