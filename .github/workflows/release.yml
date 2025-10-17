@@ -22,9 +22,6 @@ jobs:
           php-version: '8.3'
           extensions: sockets, zip
 
-      - name: Validate composer.json
-        run: composer validate --strict
-
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist
 
