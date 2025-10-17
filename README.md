@@ -114,6 +114,34 @@ php vendor/parallite/parallite-php/bin/parallite-update --force
 php vendor/parallite/parallite-php/bin/parallite-update --version=1.2.3
 ```
 
+## ⚙️ Configuration (Important!)
+
+After installation, you can customize Parallite's behavior by creating a `parallite.json` file in your project root:
+
+```json
+{
+  "php_includes": [
+    "bootstrap/app.php",
+    "/absolute/path/to/config.php"
+  ],
+  "enable_benchmark": false,
+  "go_overrides": {
+    "timeout_ms": 30000,
+    "fixed_workers": 0,
+    "prefix_name": "parallite_worker",
+    "fail_mode": "continue"
+  }
+}
+```
+
+### Quick Configuration Summary
+
+- **`php_includes`**: Files to load in worker processes (supports relative and absolute paths)
+- **`enable_benchmark`**: Enable performance metrics globally
+- **`go_overrides`**: Daemon settings (timeout, workers, etc.)
+
+> **📖 See [Detailed Configuration](#-detailed-configuration) section below for complete documentation.**
+
 ## 🚀 Quick Start
 
 Just use the `async()` and `await()` functions - no setup or imports required!
@@ -283,7 +311,11 @@ $result = await(
 
 echo $result; // {"name":"JOHN","age":30}
 
-## ⚙️ Configuration
+## ⚙️ Detailed Configuration
+
+This section provides comprehensive documentation for all configuration options available in `parallite.json`.
+
+### Configuration File Structure
 
 Create a `parallite.json` file in your project root:
 
@@ -300,21 +332,149 @@ Create a `parallite.json` file in your project root:
 }
 ```
 
-### Configuration Options
+### PHP Settings
 
-**PHP Settings:**
+#### `php_includes` (array)
 
-- **`php_includes`** (array): PHP files to include in worker processes (e.g., autoloader, bootstrap)
-- **`enable_benchmark`** (bool): Enable benchmark mode globally (default: false)
-    - When `true`, all tasks will include benchmark data unless explicitly disabled
-    - Can be overridden per-task using the `$enableBenchmark` parameter in `async()`
+PHP files to include in worker processes before executing tasks. Useful for loading bootstrap files, configuration, or
+custom autoloaders.
 
-**Go Daemon Settings (`go_overrides`):**
+**Supports both relative and absolute paths:**
 
-- **`timeout_ms`** (int): Task timeout in milliseconds (default: 30000)
-- **`fixed_workers`** (int): Number of worker processes (default: 0 = auto)
-- **`prefix_name`** (string): Prefix for worker process names (default: "parallite_worker")
-- **`fail_mode`** (string): How to handle failures: "continue" or "stop" (default: "continue")
+- **Relative paths**: Resolved relative to your project root
+- **Absolute paths**: Used as-is (starts with `/` on Linux/macOS or has `:` as second character on Windows like `C:\`)
+
+**Examples:**
+
+```json
+{
+  "php_includes": [
+    "bootstrap/app.php",
+    "config/database.php",
+    "/var/www/shared/config.php",
+    "C:\\Projects\\shared\\helpers.php"
+  ]
+}
+```
+
+**Use cases:**
+
+- Load framework bootstrap files (Laravel, Symfony, etc.)
+- Initialize database connections
+- Register custom autoloaders
+- Load environment-specific configuration
+- Include helper functions or constants
+
+**Default:** `[]` (empty array)
+
+#### `enable_benchmark` (bool)
+
+Enable benchmark mode globally to collect performance metrics for all tasks.
+
+- When `true`, all tasks will include benchmark data unless explicitly disabled
+- Can be overridden per-task using the `$enableBenchmark` parameter in `async()`
+- See [Benchmark Mode](#-benchmark-mode) section for detailed usage
+
+**Default:** `false`
+
+### Go Daemon Settings (`go_overrides`)
+
+These settings control the behavior of the Parallite daemon (the Go binary that manages worker processes).
+
+#### `timeout_ms` (int)
+
+Maximum time in milliseconds that a task can run before being terminated.
+
+**Default:** `30000` (30 seconds)
+
+**Examples:**
+
+Set timeout to 60 seconds:
+
+```json
+{
+  "go_overrides": {
+    "timeout_ms": 60000
+  }
+}
+```
+
+#### `fixed_workers` (int)
+
+Number of worker processes to maintain in the pool.
+
+- `0` (default): Auto-scale based on CPU cores
+- `> 0`: Fixed number of workers
+
+**Default:** `0` (auto)
+
+**Examples:**
+
+Always maintain 4 workersAlways maintain 4 workers:
+
+```json
+{
+  "go_overrides": {
+    "fixed_workers": 4
+  }
+}
+```
+
+#### `prefix_name` (string)
+
+Prefix for worker process names. Useful for identifying Parallite workers in process lists.
+
+**Default:** `"parallite_worker"`
+
+**Examples:**
+
+```json
+{
+  "go_overrides": {
+    "prefix_name": "myapp_worker"
+    // Workers will be named: myapp_worker_1, myapp_worker_2, etc.
+  }
+}
+```
+
+#### `fail_mode` (string)
+
+How the daemon should handle task failures.
+
+- `"continue"` (default): Continue processing other tasks even if one fails
+- `"stop"`: Stop the daemon if any task fails
+
+**Default:** `"continue"`
+
+**Examples:**
+
+```json
+{
+  "go_overrides": {
+    "fail_mode": "stop"
+    // Stop daemon on first failure (useful for critical tasks)
+  }
+}
+```
+
+### Complete Configuration Example
+
+```json
+{
+  "php_includes": [
+    "bootstrap/app.php",
+    "config/database.php",
+    "/var/www/shared/helpers.php"
+  ],
+  "enable_benchmark": true,
+  "go_overrides": {
+    "timeout_ms": 60000,
+    "fixed_workers": 4,
+    "prefix_name": "myapp_worker",
+    "fail_mode": "continue"
+  }
+}
+```
 
 ## 🎯 API Reference
 

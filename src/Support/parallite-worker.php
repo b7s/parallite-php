@@ -51,7 +51,12 @@ if (file_exists($configPath)) {
                     if (!is_string($include)) {
                         continue;
                     }
-                    $includePath = $configRoot . '/' . $include;
+                    
+                    // Check if it's a full path (starts with "/" or has ":" as second character for Windows)
+                    $isFullPath = str_starts_with($include, '/') || (strlen($include) > 1 && $include[1] === ':');
+                    
+                    $includePath = $isFullPath ? $include : $configRoot . '/' . $include;
+                    
                     if (file_exists($includePath)) {
                         require_once $includePath;
                     }
