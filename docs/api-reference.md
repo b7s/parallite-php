@@ -72,27 +72,46 @@ Promise object with chainable methods for async operations.
 
 ### `then(Closure $callback): Promise`
 
-Chain a transformation callback.
+Register a transformation callback that runs when the chain is in a resolved state.
 
 ```php
-$promise->then(fn($result) => $result * 2);
+$promise = async(fn() => 10)
+    ->then(fn(int $result) => $result * 2)
+    ->then(fn(int $result) => $result + 5);
+
+$final = await($promise); // 25
 ```
 
 ### `catch(Closure $callback): Promise`
 
-Handle exceptions.
+Handle exceptions using Promise semantics familiar from JavaScript: as soon as an error occurs, execution jumps to the next registered `catch()` handler. If the handler resolves successfully, the chain continues with the following `then()` callbacks.
 
 ```php
-$promise->catch(fn(Throwable $e) => 'Error: ' . $e->getMessage());
+$promise = async(fn() => throw new RuntimeException('Failure'))
+    ->then(fn() => 'never executed')
+    ->catch(fn(Throwable $e) => 'Recovered: ' . $e->getMessage())
+    ->then(fn(string $message) => strtoupper($message));
+
+$final = await($promise); // RECOVERED: FAILURE
 ```
+
+Multiple `catch()` handlers can be chained; each one is tried until one returns without throwing.
 
 ### `finally(Closure $callback): Promise`
 
-Execute cleanup code regardless of success/failure.
+Register callbacks that always run after the chain settles, regardless of success or failure.
 
 ```php
-$promise->finally(fn() => cleanup());
+$log = [];
+
+$promise = async(fn() => 42)
+    ->finally(fn() => $log[] = 'cleanup');
+
+await($promise);
+// $log === ['cleanup']
 ```
+
+`finally()` callbacks do not receive the resolved value and cannot modify the chain result.
 
 ### `resolve(): mixed`
 

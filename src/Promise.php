@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Parallite;
 
 use Closure;
+use RuntimeException;
 use Socket;
 use Throwable;
 
@@ -20,19 +21,9 @@ final class Promise
     private ?array $future = null;
 
     /**
-     * @var array<Closure>
+     * @var array<array{type: 'then'|'catch'|'finally', callback: Closure}>
      */
-    private array $thenCallbacks = [];
-
-    /**
-     * @var array<Closure>
-     */
-    private array $catchCallbacks = [];
-
-    /**
-     * @var array<Closure> $finallyCallbacks
-     */
-    private array $finallyCallbacks = [];
+    private array $handlers = [];
 
     /**
      * @var ?BenchmarkData $benchmark
@@ -82,12 +73,22 @@ final class Promise
     /**
      * Resolve the promise and apply all chained callbacks
      *
+     * Follows JavaScript Promise semantics:
+     * - then() handlers run sequentially on success
+     * - On error, skip to next catch() handler
+     * - After catch() handles error, continue with subsequent then() handlers
+     * - finally() handlers always run at the end
+     *
      * @return mixed
      * @throws Throwable
      */
     public function resolve(): mixed
     {
         $this->start();
+
+        $result = null;
+        $exception = null;
+        $isError = false;
 
         try {
             // Pass future by reference to allow await() to modify it
@@ -98,37 +99,60 @@ final class Promise
             if (isset($this->future['benchmark'])) {
                 $this->benchmark = BenchmarkData::fromArray($this->future['benchmark']);
             }
-
-            // Apply all then callbacks in sequence
-            foreach ($this->thenCallbacks as $then) {
-                $result = $then($result);
-            }
-
-            return $result;
         } catch (Throwable $e) {
-            // Apply catch callbacks
-            foreach ($this->catchCallbacks as $catch) {
-                try {
-                    $result = $catch($e);
-                    
-                    // Apply remaining then callbacks after catch
-                    foreach ($this->thenCallbacks as $then) {
-                        $result = $then($result);
+            $exception = $e;
+            $isError = true;
+        }
+
+        // Process handlers in registration order
+        foreach ($this->handlers as $handler) {
+            if ($handler['type'] === 'then') {
+                if (!$isError) {
+                    try {
+                        $result = $handler['callback']($result);
+                    } catch (Throwable $e) {
+                        $exception = $e;
+                        $isError = true;
                     }
-                    
-                    return $result;
-                } catch (Throwable $newException) {
-                    $e = $newException;
+                }
+                // If in error state, skip this then handler
+            } elseif ($handler['type'] === 'catch') {
+                if ($isError) {
+                    try {
+                        $result = $handler['callback']($exception);
+                        $isError = false;
+                    } catch (Throwable $e) {
+                        $exception = $e;
+                        // Stay in error state with new exception
+                    }
+                }
+                // If not in error state, skip this catch handler
+            }
+            // finally handlers are processed separately at the end
+        }
+
+        // Apply finally callbacks (always run, don't modify result)
+        try {
+            foreach ($this->handlers as $handler) {
+                if ($handler['type'] === 'finally') {
+                    $handler['callback']();
                 }
             }
-
-            throw $e;
-        } finally {
-            // Apply finally callbacks
-            foreach ($this->finallyCallbacks as $finally) {
-                $finally();
-            }
+        } catch (Throwable $finallyException) {
+            // Finally exceptions take precedence
+            throw $finallyException;
         }
+
+        // Throw if still in error state
+        if ($isError) {
+            if (!$exception instanceof Throwable) {
+                throw new RuntimeException('Promise rejected without exception instance.');
+            }
+
+            throw $exception;
+        }
+
+        return $result;
     }
 
     /**
@@ -140,7 +164,7 @@ final class Promise
      */
     public function then(Closure $then): self
     {
-        $this->thenCallbacks[] = $then;
+        $this->handlers[] = ['type' => 'then', 'callback' => $then];
 
         return $this;
     }
@@ -154,7 +178,7 @@ final class Promise
      */
     public function catch(Closure $catch): self
     {
-        $this->catchCallbacks[] = $catch;
+        $this->handlers[] = ['type' => 'catch', 'callback' => $catch];
 
         return $this;
     }
@@ -167,7 +191,7 @@ final class Promise
      */
     public function finally(Closure $finally): self
     {
-        $this->finallyCallbacks[] = $finally;
+        $this->handlers[] = ['type' => 'finally', 'callback' => $finally];
 
         return $this;
     }
