@@ -349,8 +349,7 @@ Include the Parallite bootstrap in the `parallite.json` file at the root of your
 {
   "php_includes": [
     "bootstrap/parallite.php"
-  ],
-  ...
+  ]
 }
 ```
 
@@ -1017,6 +1016,53 @@ ls -la /tmp/parallite.sock
 # Make binary executable
 chmod +x vendor/bin/parallite
 ```
+
+### Serialization Failure Summary
+
+#### Cause
+
+- **Bound `$this`**: Passing closures like `async(fn () => $this->getCustomerStatistics())` makes `opis/closure`
+  serialize the entire controller instance, including non-serializable, like complex objects (models, request,
+  container),
+  triggering
+  `Opis\Closure\ReflectionClosure::getCallableForm(): Return value must be of type ?callable, array returned`.
+
+#### Impact
+
+- **Daemon processing**: Workers cannot deserialize the closure payload, so all parallel tasks using those closures fail
+  before execution.
+
+#### Resolution
+
+- **Detach context**: Extract primitive values or move logic into static helpers so the closure passed
+  to `async()` is unbound:
+
+```php
+$promises = [
+    'customers' => async(function () {
+        return [
+            'total' => Customer::query()->count(),
+            'with_orders' => Customer::query()->has('orders')->count(),
+            'without_orders' => Customer::query()->doesntHave('orders')->count(),
+        ];
+    }),
+];
+```
+
+- **Static alternative**:
+
+```php
+$promises = [
+    'customers' => async(fn () => self::getCustomerStatistics()),
+];
+```
+
+#### Key Rules
+
+- **No direct `$this` capture** in closures sent
+  via [async()](cci:1://file:///mnt/develop/underpixels/parallite/parallite-php/src/functions.php:52:8-99:9).
+- **Prefer static/service methods** when shared state is required.
+- **Only serialize primitives** (scalars/arrays); Laravel: convert Eloquent results with `->toArray()` or `->all()`.
 
 ## 🤝 Contributing
 
