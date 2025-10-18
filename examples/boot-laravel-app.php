@@ -22,5 +22,3 @@ $app = require_once __DIR__ . '/app.php';
 // Bootstrap the console kernel (not HTTP kernel)
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
-
-// Now the Laravel application is ready for use in closures
