@@ -310,6 +310,7 @@ $result = await(
 );
 
 echo $result; // {"name":"JOHN","age":30}
+```
 
 ## ⚙️ Detailed Configuration
 
