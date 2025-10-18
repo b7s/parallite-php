@@ -39,7 +39,7 @@ Add the install/update scripts to your `composer.json`:
 
 > See `composer.json.example` for a full example.
 
-Then run `composer install` or `composer update`. The binary is placed at `vendor/bin/parallite`.
+Then run `composer install` or `composer update`. The binary is placed at `vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin` (or `.exe` on Windows).
 
 ### Option 2 · One-Time Install
 

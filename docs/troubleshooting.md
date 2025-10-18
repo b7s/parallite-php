@@ -42,10 +42,12 @@ ls -la /tmp/parallite.sock
 
 **Solution:**
 
-Start the daemon manually:
+Start the daemon manually (the binary is auto-resolved from the latest installed version):
 
 ```bash
-./vendor/bin/parallite --socket=/tmp/parallite.sock
+# The binary path is managed automatically
+# It's located at vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin
+./vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin --socket=/tmp/parallite.sock
 ```
 
 Or use automatic daemon management:
@@ -62,9 +64,11 @@ $client = new ParalliteClient(autoManageDaemon: true);
 
 **Solution:**
 
+The installer automatically sets the correct permissions. If you still have issues, the binary is located at:
+
 ```bash
-# Make binary executable
-chmod +x vendor/bin/parallite
+# Find and make executable (Unix/Linux/macOS)
+chmod +x vendor/parallite/parallite-php/bin/parallite-bin/parallite-*.bin
 ```
 
 ## Serialization Failures

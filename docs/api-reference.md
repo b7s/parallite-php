@@ -74,6 +74,8 @@ Promise object with chainable methods for async operations.
 
 Register a transformation callback that runs when the chain is in a resolved state.
 
+Based on the [Promise/A+](https://promisesaplus.com/) specification.
+
 ```php
 $promise = async(fn() => 10)
     ->then(fn(int $result) => $result * 2)
@@ -84,7 +86,9 @@ $final = await($promise); // 25
 
 ### `catch(Closure $callback): Promise`
 
-Handle exceptions using Promise semantics familiar from JavaScript: as soon as an error occurs, execution jumps to the next registered `catch()` handler. If the handler resolves successfully, the chain continues with the following `then()` callbacks.
+Handle exceptions using Promise semantics familiar from JavaScript: as soon as an error occurs, execution jumps to the
+next registered `catch()` handler. If the handler resolves successfully, the chain continues with the following `then()`
+callbacks.
 
 ```php
 $promise = async(fn() => throw new RuntimeException('Failure'))

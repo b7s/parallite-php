@@ -5,21 +5,22 @@ declare(strict_types=1);
 namespace Parallite {
 
     use Closure;
+    use Socket;
     use Throwable;
 
     /**
      * Read benchmark configuration from parallite.json
-     * 
+     *
      * @return bool
      */
     function getBenchmarkConfig(): bool
     {
         static $config = null;
-        
+
         if ($config !== null) {
             return $config;
         }
-        
+
         // Find project root and config file
         $dir = __DIR__;
         for ($i = 0; $i < 10; $i++) {
@@ -33,17 +34,17 @@ namespace Parallite {
                 if (!is_array($data)) {
                     continue;
                 }
-                $config = (bool) ($data['enable_benchmark'] ?? false);
+                $config = (bool)($data['enable_benchmark'] ?? false);
                 return $config;
             }
-            
+
             $parentDir = dirname($dir);
             if ($parentDir === $dir) {
                 break;
             }
             $dir = $parentDir;
         }
-        
+
         // Default to false if no config found
         $config = false;
         return $config;
@@ -52,12 +53,11 @@ namespace Parallite {
     if (!function_exists('Parallite\async')) {
         /**
          * Create a promise for async execution with chainable then/catch/finally
-         * 
-         * Priority: parameter > parallite.json > default (false)
-         * 
+         * See more: https://promisesaplus.com/
+         *
          * @template TReturn
-         * @param Closure(): TReturn $closure
-         * @param bool|null $enableBenchmark Enable benchmark (null = read from config)
+         * @param Closure(): TReturn $closure         Anonymous function to execute
+         * @param bool|null          $enableBenchmark Enable benchmark (null = read from config)
          * @return Promise<TReturn>
          */
         function async(Closure $closure, ?bool $enableBenchmark = null): Promise
@@ -105,9 +105,9 @@ namespace Parallite {
          * Await a promise or array of promises to resolve
          *
          * @template TReturn
-         * @param Promise<TReturn>|array<Promise<TReturn>>|array{socket: \Socket, task_id: string} $promise Single promise or array of promises
+         * @param Promise<TReturn>|array<Promise<TReturn>>|array{socket: Socket, task_id: string} $promise Single promise or array of promises
          * @return TReturn|array<TReturn> Single result or array of results (if was a valid promises on array)
-         * @throws Throwable
+         *
          */
         function await(Promise|array $promise): mixed
         {
@@ -129,18 +129,17 @@ namespace Parallite {
 
 namespace {
 
+    use JetBrains\PhpStorm\NoReturn;
     use Parallite\Promise;
 
     // Global aliases for convenience - use async() and await() without namespace imports
     if (!function_exists('async')) {
         /**
          * Global alias for Parallite\async()
-         * 
-         * Priority: parameter > parallite.json > default (false)
          *
          * @template TReturn
          * @param Closure(): TReturn $closure
-         * @param bool|null $enableBenchmark Enable benchmark (null = read from config)
+         * @param bool|null          $enableBenchmark Enable benchmark (null = read from config)
          * @return Promise<TReturn>
          */
         function async(Closure $closure, ?bool $enableBenchmark = null): Promise
@@ -154,13 +153,35 @@ namespace {
          * Global alias for Parallite\await()
          *
          * @template TReturn
-         * @param Promise<TReturn>|array<Promise<TReturn>>|array{socket: \Socket, task_id: string} $promise Single promise or array of promises
+         * @param Promise<TReturn>|array<Promise<TReturn>>|array{socket: Socket, task_id: string} $promise Single promise or array of promises
          * @return TReturn|array<TReturn> Single result or array of results
          * @throws Throwable
          */
         function await(Promise|array $promise): mixed
         {
             return \Parallite\await($promise);
+        }
+    }
+
+    if (!function_exists('dd')) {
+        /**
+         * Dump the passed variables and end the script.
+         *
+         * @param mixed ...$values
+         * @return void
+         */
+        function dd(mixed ...$values): void
+        {
+            if (count($values) > 0) {
+                foreach ($values as $value) {
+                    var_dump($value);
+                    echo "\n\n";
+                }
+            } else {
+                echo '[Nothing to dump]';
+            }
+
+            exit(1);
         }
     }
 }

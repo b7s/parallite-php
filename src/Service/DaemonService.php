@@ -14,9 +14,10 @@ final class DaemonService
     private ?int $daemonPid = null;
 
     public function __construct(
-        private readonly string $socketPath,
+        private readonly string        $socketPath,
         private readonly ConfigService $configService
-    ) {
+    )
+    {
     }
 
     /**
@@ -42,7 +43,7 @@ final class DaemonService
 
     /**
      * Ensure the daemon is running, start it if not
-     * 
+     *
      * @throws RuntimeException
      */
     public function ensureDaemonRunning(): void
@@ -56,7 +57,7 @@ final class DaemonService
 
     /**
      * Start the Parallite daemon
-     * 
+     *
      * @throws RuntimeException
      */
     public function startDaemon(): void
@@ -64,12 +65,16 @@ final class DaemonService
         $binaryPath = $this->configService->findBinary();
         $config = $this->configService->loadDaemonConfig();
 
+        // Log the binary version being used
+        $version = $this->getBinaryVersion($binaryPath);
+        error_log("Starting Parallite daemon (version: {$version})");
+
         if (file_exists($this->socketPath)) {
             @unlink($this->socketPath);
         }
 
         $configPath = $this->configService->getConfigPath();
-        $logFile = sys_get_temp_dir().'/parallite_client_'.getmypid().'.log';
+        $logFile = sys_get_temp_dir() . '/parallite_client_' . getmypid() . '.log';
 
         if (ConfigService::isWindows()) {
             $this->startDaemonWindows($binaryPath, $configPath, $config, $logFile);
@@ -82,16 +87,18 @@ final class DaemonService
 
     /**
      * Start daemon on Unix-like systems (Linux/macOS)
-     * 
+     *
      * @param array<string, mixed> $config
      * @throws RuntimeException
      */
     private function startDaemonUnix(string $binaryPath, string $configPath, array $config, string $logFile): void
     {
-        $timeoutMs = is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 30000;
-        $fixedWorkers = is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 0;
-        $prefixName = is_string($config['prefix_name'] ?? null) ? $config['prefix_name'] : 'parallite_worker';
-        $failMode = is_string($config['fail_mode'] ?? null) ? $config['fail_mode'] : 'continue';
+        [
+            'timeoutMs' => $timeoutMs,
+            'fixedWorkers' => $fixedWorkers,
+            'prefixName' => $prefixName,
+            'failMode' => $failMode
+        ] = $this->extractDaemonConfig($config);
 
         $cmd = sprintf(
             '%s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s > %s 2>&1 & echo $!',
@@ -109,7 +116,7 @@ final class DaemonService
         if ($output === null || $output === false) {
             throw new RuntimeException('Failed to execute daemon start command');
         }
-        $this->daemonPid = (int) trim($output);
+        $this->daemonPid = (int)trim($output);
 
         if ($this->daemonPid === 0) {
             $logContent = 'Log not found';
@@ -125,16 +132,18 @@ final class DaemonService
 
     /**
      * Start daemon on Windows
-     * 
+     *
      * @param array<string, mixed> $config
      */
     private function startDaemonWindows(string $binaryPath, string $configPath, array $config, string $logFile): void
     {
-        $timeoutMs = is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 30000;
-        $fixedWorkers = is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 0;
-        $prefixName = is_string($config['prefix_name'] ?? null) ? $config['prefix_name'] : 'parallite_worker';
-        $failMode = is_string($config['fail_mode'] ?? null) ? $config['fail_mode'] : 'continue';
-        
+        [
+            'timeoutMs' => $timeoutMs,
+            'fixedWorkers' => $fixedWorkers,
+            'prefixName' => $prefixName,
+            'failMode' => $failMode
+        ] = $this->extractDaemonConfig($config);
+
         $cmd = sprintf(
             'start /B "" %s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s > %s 2>&1',
             escapeshellarg($binaryPath),
@@ -168,19 +177,19 @@ final class DaemonService
                 if (function_exists('posix_kill') && posix_kill($this->daemonPid, 0)) {
                     posix_kill($this->daemonPid, SIGTERM);
                 }
-                
+
                 if (file_exists($this->socketPath)) {
                     @unlink($this->socketPath);
                 }
             }
-            
+
             $this->daemonPid = null;
         }
     }
 
     /**
      * Wait for daemon socket to be ready
-     * 
+     *
      * @throws RuntimeException
      */
     private function waitForSocket(string $logFile = '', int $maxAttempts = 50, int $sleepMs = 100): void
@@ -200,5 +209,33 @@ final class DaemonService
         }
 
         throw new RuntimeException($errorMsg);
+    }
+
+    /**
+     * Extract version from binary path (parallite-1.2.3)
+     */
+    private function getBinaryVersion(string $binaryPath): string
+    {
+        $basename = basename($binaryPath);
+        if (preg_match('/parallite-(\d+\.\d+\.\d+)/', $basename, $matches) === 1) {
+            return $matches[1];
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Extract, validate and transform daemon configuration with defaults
+     *
+     * @param array<string, mixed> $config
+     * @return array{timeoutMs: int, fixedWorkers: int, prefixName: string, failMode: string}
+     */
+    private function extractDaemonConfig(array $config): array
+    {
+        return [
+            'timeoutMs' => is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 30000,
+            'fixedWorkers' => is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 0,
+            'prefixName' => is_string($config['prefix_name'] ?? null) ? $config['prefix_name'] : 'parallite_worker',
+            'failMode' => is_string($config['fail_mode'] ?? null) ? $config['fail_mode'] : 'continue',
+        ];
     }
 }

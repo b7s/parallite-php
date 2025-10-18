@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Parallite\Service;
 
 use Closure;
+use Parallite\Promise;
 use Socket;
 use Throwable;
 
@@ -15,12 +16,13 @@ final class TaskService
 {
     public function __construct(
         private readonly SocketService $socketService
-    ) {
+    )
+    {
     }
 
     /**
      * Await multiple closures in parallel
-     * 
+     *
      * @param array<Closure> $closures
      * @return array<mixed>
      * @throws Throwable
@@ -43,16 +45,16 @@ final class TaskService
     /**
      * Await multiple promises/futures in parallel
      *
-     * @param array<\Parallite\Promise|array{socket: Socket|null, task_id: string}|mixed> $promises
+     * @param array<Promise|array{socket: Socket|null, task_id: string}|mixed> $promises
      * @return array<mixed>
      * @throws Throwable
      */
     public function awaitMultiple(array $promises): array
     {
         $results = [];
-        
+
         foreach ($promises as $key => $p) {
-            if ($p instanceof \Parallite\Promise) {
+            if ($p instanceof Promise) {
                 $results[$key] = $p->resolve();
             } elseif (is_array($p) && isset($p['socket']) && isset($p['task_id'])) {
                 /** @var array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>} $p */
@@ -61,7 +63,7 @@ final class TaskService
                 $results[$key] = $p;
             }
         }
-        
+
         return $results;
     }
 }

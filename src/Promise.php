@@ -35,9 +35,10 @@ final class Promise
      */
     public function __construct(
         private readonly ParalliteClient $client,
-        private readonly Closure $callback,
-        bool $eager = true
-    ) {
+        private readonly Closure         $callback,
+        bool                             $eager = true
+    )
+    {
         // Start execution immediately for true parallelism
         if ($eager) {
             $this->start();
@@ -46,7 +47,7 @@ final class Promise
 
     /**
      * Start the async execution if not already started
-     * 
+     *
      * @return array{socket: Socket, task_id: string}
      */
     public function start(): array
@@ -62,7 +63,7 @@ final class Promise
 
     /**
      * Get the future (for backward compatibility with await())
-     * 
+     *
      * @return array{socket: Socket, task_id: string}
      */
     public function getFuture(): array
@@ -132,15 +133,10 @@ final class Promise
         }
 
         // Apply finally callbacks (always run, don't modify result)
-        try {
-            foreach ($this->handlers as $handler) {
-                if ($handler['type'] === 'finally') {
-                    $handler['callback']();
-                }
+        foreach ($this->handlers as $handler) {
+            if ($handler['type'] === 'finally') {
+                $handler['callback']();
             }
-        } catch (Throwable $finallyException) {
-            // Finally exceptions take precedence
-            throw $finallyException;
         }
 
         // Throw if still in error state
@@ -157,7 +153,7 @@ final class Promise
 
     /**
      * Add a then callback to the promise chain
-     * 
+     *
      * @template TThenReturn
      * @param Closure(TReturn): TThenReturn $then
      * @return self<TThenReturn>
@@ -171,7 +167,7 @@ final class Promise
 
     /**
      * Add a catch callback to handle exceptions
-     * 
+     *
      * @template TCatchReturn
      * @param Closure(Throwable): TCatchReturn $catch
      * @return self<TReturn|TCatchReturn>
@@ -185,7 +181,7 @@ final class Promise
 
     /**
      * Add a final callback that runs regardless of success/failure
-     * 
+     *
      * @param Closure(): void $finally
      * @return self<TReturn>
      */
@@ -198,19 +194,19 @@ final class Promise
 
     /**
      * Allow promise to be invoked directly
-     * 
+     *
      * @return TReturn
      */
     public function __invoke(): mixed
     {
         return $this->resolve();
     }
-    
+
     /**
      * Get benchmark data if available
-     * 
+     *
      * Returns null if benchmark mode was not enabled or if promise hasn't been resolved yet.
-     * 
+     *
      * @return BenchmarkData|null
      */
     public function getBenchmark(): ?BenchmarkData

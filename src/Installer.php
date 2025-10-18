@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Parallite;
 
-use Parallite\Service\ProjectRootFinderService;
+use Parallite\Service\ConfigService;
+use Parallite\Service\BinaryResolverService;
 use RuntimeException;
 use ZipArchive;
 
@@ -14,12 +15,12 @@ use ZipArchive;
 final class Installer
 {
     private const string GITHUB_REPO = 'b7s/parallite';
-    private const string GITHUB_API_URL = 'https://api.github.com/repos/'.self::GITHUB_REPO.'/releases/latest';
+    private const string GITHUB_API_URL = 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest';
 
     /**
      * Install the Parallite binary for the current platform.
      *
-     * @param bool $force Force reinstall even if binary exists
+     * @param bool        $force   Force reinstall even if binary exists
      * @param string|null $version Specific version to install (e.g., '1.2.3' or 'v1.2.3')
      */
     public static function install(bool $force = false, ?string $version = null): void
@@ -31,26 +32,41 @@ final class Installer
             return;
         }
 
-        $binPath = self::getBinPath();
-
-        if (! $force && file_exists($binPath)) {
-            echo "Parallite binary already installed at: {$binPath}\n";
-            echo "Use --force to reinstall.\n";
-            return;
-        }
-
         echo "Installing Parallite binary...\n";
 
         $platformInfo = self::detectPlatform();
         $platform = $platformInfo['platform'];
         $extension = $platformInfo['extension'];
-        
+
         echo "Detected platform: {$platform}\n";
+
+        // Get version from latest release
+        $latestVersion = self::checkForUpdates();
+        if ($latestVersion === null) {
+            throw new RuntimeException('Failed to fetch latest release from GitHub.');
+        }
+
+        $latestVersion = ltrim($latestVersion, 'v');
+
+        $binPath = self::getBinPath($latestVersion);
+
+        // Clean up old versions
+        self::cleanupOldVersions($latestVersion);
+
+        if (!$force && file_exists($binPath)) {
+            echo "Parallite binary already installed at: {$binPath}\n";
+            echo "Use --force to reinstall.\n";
+            return;
+        }
 
         $downloadUrl = self::getDownloadUrl($platform, $extension);
         echo "Downloading from: {$downloadUrl}\n";
 
-        self::downloadAndExtract($downloadUrl, $binPath, $platform, $extension);
+        self::downloadAndExtract($downloadUrl, $binPath, $platform, $extension, $latestVersion);
+
+        // Clear binary cache
+        $binResolver = new BinaryResolverService();
+        $binResolver->clearCache();
 
         echo "✓ Parallite binary installed successfully at: {$binPath}\n";
     }
@@ -59,11 +75,15 @@ final class Installer
      * Update the Parallite binary to the latest version.
      * Only updates within the same major version to prevent breaking changes.
      *
-     * @param bool $force Force update even across major versions
+     * @param bool        $force   Force update even across major versions
      * @param string|null $version Specific version to install (e.g., '1.2.3' or 'v1.2.3')
      */
     public static function update(bool $force = false, ?string $version = null): void
     {
+        // Clear cache before update
+        $binResolver = new BinaryResolverService();
+        $binResolver->clearCache();
+
         // If specific version is requested, install it directly
         if ($version !== null) {
             $version = ltrim($version, 'v');
@@ -71,52 +91,55 @@ final class Installer
             self::installVersion($version);
             return;
         }
-        
+
         echo "Updating Parallite binary to latest version...\n";
-        
+
         $currentVersion = self::getInstalledVersion();
-        
+
         if ($currentVersion === null) {
             echo "No current version found. Installing latest version...\n";
             self::install(force: true);
             return;
         }
-        
+
         if ($currentVersion === 'unknown') {
             echo "Warning: Could not determine current version. Proceeding with update...\n";
             self::install(force: true);
             return;
         }
-        
+
         $latestVersion = self::checkForUpdates();
-        
+
         if ($latestVersion === null) {
             echo "Could not check for updates. Please try again later.\n";
             return;
         }
-        
+
         // Remove 'v' prefix if present
         $latestVersion = ltrim($latestVersion, 'v');
-        
-        if (! self::isSameMajorVersion($currentVersion, $latestVersion)) {
+
+        if (!self::isSameMajorVersion($currentVersion, $latestVersion)) {
             if ($force) {
                 echo "⚠ Warning: Forcing update across major versions ({$currentVersion} → {$latestVersion})\n";
                 echo "  This may include breaking changes. Proceed with caution.\n";
             } else {
                 echo "✗ Update blocked: Current version {$currentVersion} cannot be updated to {$latestVersion}\n";
                 echo "  Breaking changes detected. Major version updates must be done manually.\n";
-                echo "  Current major version: ".self::getMajorVersion($currentVersion)."\n";
-                echo "  Latest major version: ".self::getMajorVersion($latestVersion)."\n";
+                echo '  Current major version: ' . self::getMajorVersion($currentVersion) . "\n";
+                echo '  Latest major version: ' . self::getMajorVersion($latestVersion) . "\n";
                 echo "  Use --force to override this check or specify a version with --version=X.Y.Z\n";
                 return;
             }
         }
-        
+
+        // Clean up old versions
+        self::cleanupOldVersions($currentVersion);
+
         if (version_compare($currentVersion, $latestVersion, '>=')) {
             echo "✓ Already up to date (version {$currentVersion})\n";
             return;
         }
-        
+
         echo "Updating from {$currentVersion} to {$latestVersion}...\n";
         self::install(force: true);
     }
@@ -124,27 +147,17 @@ final class Installer
     /**
      * Get the installation path for the binary.
      */
-    private static function getBinPath(): string
+    private static function getBinPath(string $version): string
     {
-        // When called from vendor/bin/parallite-install, use the current working directory
-        // This ensures we install in the project that's using parallite, not in parallite's own vendor
-        $cwd = getcwd();
-        if ($cwd !== false && file_exists($cwd.'/vendor/autoload.php')) {
-            $projectRoot = $cwd;
-        } else {
-            // Fallback: Find project root by looking for vendor/autoload.php
-            $projectRoot = ProjectRootFinderService::find(__DIR__);
-        }
-        
-        $vendorBin = $projectRoot.'/vendor/bin';
+        $resolver = new BinaryResolverService();
+        $binariesDir = $resolver->getBinariesDirectory();
 
-        if (! is_dir($vendorBin)) {
-            mkdir($vendorBin, 0755, true);
+        if (!is_dir($binariesDir)) {
+            mkdir($binariesDir, 0755, true);
         }
 
-        return $vendorBin.'/parallite';
+        return $binariesDir . "/parallite-{$version}";
     }
-
 
     /**
      * Detect the current platform and architecture.
@@ -181,18 +194,25 @@ final class Installer
      */
     private static function installVersion(string $version): void
     {
-        $binPath = self::getBinPath();
+        $binPath = self::getBinPath($version);
         $platformInfo = self::detectPlatform();
         $platform = $platformInfo['platform'];
         $extension = $platformInfo['extension'];
-        
+
         echo "Detected platform: {$platform}\n";
-        
+
         $downloadUrl = self::getDownloadUrlForVersion($version, $platform, $extension);
         echo "Downloading from: {$downloadUrl}\n";
-        
-        self::downloadAndExtract($downloadUrl, $binPath, $platform, $extension);
-        
+
+        self::downloadAndExtract($downloadUrl, $binPath, $platform, $extension, $version);
+
+        // Clean up old versions
+        self::cleanupOldVersions($version);
+
+        // Clear binary cache
+        $resolver = new BinaryResolverService();
+        $resolver->clearCache();
+
         echo "✓ Parallite binary version {$version} installed successfully at: {$binPath}\n";
     }
 
@@ -224,7 +244,7 @@ final class Installer
             throw new RuntimeException('Invalid response from GitHub API');
         }
 
-        if (! isset($release['assets']) || ! is_array($release['assets'])) {
+        if (!isset($release['assets']) || !is_array($release['assets'])) {
             throw new RuntimeException('Invalid response from GitHub API');
         }
 
@@ -242,7 +262,7 @@ final class Installer
         }
 
         throw new RuntimeException(
-            "No binary found for platform: {$platform}.{$extension}. Available assets: ".
+            "No binary found for platform: {$platform}.{$extension}. Available assets: " .
             implode(', ', array_column($release['assets'], 'name'))
         );
     }
@@ -253,8 +273,8 @@ final class Installer
     private static function getDownloadUrlForVersion(string $version, string $platform, string $extension): string
     {
         $version = ltrim($version, 'v');
-        $apiUrl = 'https://api.github.com/repos/'.self::GITHUB_REPO."/releases/tags/v{$version}";
-        
+        $apiUrl = 'https://api.github.com/repos/' . self::GITHUB_REPO . "/releases/tags/v{$version}";
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
@@ -278,7 +298,7 @@ final class Installer
             throw new RuntimeException("Invalid response from GitHub API for version v{$version}");
         }
 
-        if (! isset($release['assets']) || ! is_array($release['assets'])) {
+        if (!isset($release['assets']) || !is_array($release['assets'])) {
             throw new RuntimeException("No assets found for version v{$version}");
         }
 
@@ -296,7 +316,7 @@ final class Installer
         }
 
         throw new RuntimeException(
-            "No binary found for platform {$platform}.{$extension} in version v{$version}. Available assets: ".
+            "No binary found for platform {$platform}.{$extension} in version v{$version}. Available assets: " .
             implode(', ', array_column($release['assets'], 'name'))
         );
     }
@@ -304,10 +324,10 @@ final class Installer
     /**
      * Download and extract the binary archive.
      */
-    private static function downloadAndExtract(string $url, string $destination, string $platform, string $extension): void
+    private static function downloadAndExtract(string $url, string $destination, string $platform, string $extension, string $version): void
     {
         $tmpDir = sys_get_temp_dir();
-        $archivePath = $tmpDir.'/parallite-'.uniqid().'.'.$extension;
+        $archivePath = $tmpDir . '/parallite-' . uniqid() . '.' . $extension;
 
         // Download archive
         $context = stream_context_create([
@@ -350,7 +370,7 @@ final class Installer
      */
     private static function extractTarGz(string $archivePath, string $destination, string $platform): void
     {
-        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
+        $tmpDir = sys_get_temp_dir() . '/parallite-extract-' . uniqid();
         mkdir($tmpDir, 0755, true);
 
         try {
@@ -364,25 +384,31 @@ final class Installer
             exec($command, $output, $returnCode);
 
             if ($returnCode !== 0) {
-                throw new RuntimeException('Failed to extract tar.gz: '.implode("\n", $output));
+                throw new RuntimeException('Failed to extract tar.gz: ' . implode("\n", $output));
             }
 
-            // Find the binary file
+            // Find the binary file (with or without .exe)
             $binaryName = "parallite-{$platform}";
-            $binaryPath = $tmpDir.'/'.$binaryName;
+            $binaryPath = $tmpDir . '/' . $binaryName;
 
-            if (! file_exists($binaryPath)) {
+            // On Windows, check for .exe version if needed
+            if (!file_exists($binaryPath) && ConfigService::isWindows()) {
+                $binaryPath .= '.exe';
+                if (!file_exists($binaryPath)) {
+                    throw new RuntimeException("Binary not found in archive: {$binaryName} or {$binaryName}.exe");
+                }
+            } elseif (!file_exists($binaryPath)) {
                 throw new RuntimeException("Binary not found in archive: {$binaryName}");
             }
 
-            // Move to destination
-            if (! rename($binaryPath, $destination)) {
+            // Move to destination (without .exe)
+            if (!rename($binaryPath, $destination)) {
                 throw new RuntimeException("Failed to move binary to: {$destination}");
             }
         } finally {
             // Cleanup
             if (is_dir($tmpDir)) {
-                $files = glob($tmpDir.'/*');
+                $files = glob($tmpDir . '/*');
                 if ($files !== false) {
                     array_map('unlink', $files);
                 }
@@ -396,39 +422,45 @@ final class Installer
      */
     private static function extractZip(string $archivePath, string $destination, string $platform): void
     {
-        if (! class_exists('ZipArchive')) {
+        if (!class_exists('ZipArchive')) {
             throw new RuntimeException('ZipArchive extension is required for Windows installation');
         }
 
         $zip = new ZipArchive();
-        
+
         if ($zip->open($archivePath) !== true) {
             throw new RuntimeException('Failed to open zip archive');
         }
 
-        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
+        $tmpDir = sys_get_temp_dir() . '/parallite-extract-' . uniqid();
         mkdir($tmpDir, 0755, true);
 
         try {
             $zip->extractTo($tmpDir);
             $zip->close();
 
-            // Find the binary file
-            $binaryName = "parallite-{$platform}.exe";
-            $binaryPath = $tmpDir.'/'.$binaryName;
+            // Find the binary file (with or without .exe)
+            $binaryName = "parallite-{$platform}";
+            $binaryPath = $tmpDir . '/' . $binaryName;
 
-            if (! file_exists($binaryPath)) {
+            // Check for .exe version on Windows
+            if (!file_exists($binaryPath) && ConfigService::isWindows()) {
+                $binaryPath .= '.exe';
+                if (!file_exists($binaryPath)) {
+                    throw new RuntimeException("Binary not found in archive: {$binaryName} or {$binaryName}.exe");
+                }
+            } elseif (!file_exists($binaryPath)) {
                 throw new RuntimeException("Binary not found in archive: {$binaryName}");
             }
 
-            // Move to destination
-            if (! rename($binaryPath, $destination.'.exe')) {
+            // Move to destination (without .exe)
+            if (!rename($binaryPath, $destination)) {
                 throw new RuntimeException("Failed to move binary to: {$destination}");
             }
         } finally {
             // Cleanup
             if (is_dir($tmpDir)) {
-                $files = glob($tmpDir.'/*');
+                $files = glob($tmpDir . '/*');
                 if ($files !== false) {
                     array_map('unlink', $files);
                 }
@@ -442,13 +474,18 @@ final class Installer
      */
     public static function getInstalledVersion(): ?string
     {
-        $binPath = self::getBinPath();
-
-        if (! file_exists($binPath)) {
+        try {
+            $resolver = new BinaryResolverService();
+            $binPath = $resolver->getBinaryPath();
+        } catch (RuntimeException) {
             return null;
         }
 
-        $output = shell_exec(escapeshellarg($binPath).' --version 2>&1');
+        if (!file_exists($binPath)) {
+            return null;
+        }
+
+        $output = shell_exec(escapeshellarg($binPath) . ' --version 2>&1');
 
         if ($output === null || $output === false) {
             return null;
@@ -514,6 +551,41 @@ final class Installer
             throw new RuntimeException("Invalid version format: {$version}");
         }
 
-        return (int) $parts[0];
+        return (int)$parts[0];
+    }
+
+    /**
+     * Clean up old binary versions, keeping only the current one
+     */
+    private static function cleanupOldVersions(string $currentVersion): void
+    {
+        $resolver = new BinaryResolverService();
+        $binariesDir = $resolver->getBinariesDirectory();
+
+        if (!is_dir($binariesDir)) {
+            return;
+        }
+
+        $pattern = $binariesDir . '/parallite-*';
+        $files = glob($pattern);
+
+        if ($files === false) {
+            return;
+        }
+
+        foreach ($files as $file) {
+            $basename = basename($file);
+
+            $matchResult = preg_match('/parallite-(\d+\.\d+\.\d+)(?:\.\w+)?$/', $basename, $matches);
+            if ($matchResult === 1) {
+                $fileVersion = $matches[1];
+
+                if ($fileVersion === $currentVersion) {
+                    continue;
+                }
+            }
+
+            @unlink($file);
+        }
     }
 }

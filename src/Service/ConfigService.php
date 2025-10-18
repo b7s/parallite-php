@@ -20,7 +20,7 @@ final class ConfigService
         } else {
             // Try to use current working directory first (works when installed as dependency)
             $cwd = getcwd();
-            if ($cwd !== false && file_exists($cwd.'/vendor/autoload.php')) {
+            if ($cwd !== false && file_exists($cwd . '/vendor/autoload.php')) {
                 $this->projectRoot = $cwd;
             } else {
                 // Fallback to searching from package directory
@@ -48,15 +48,15 @@ final class ConfigService
     public static function getDefaultSocketPath(): string
     {
         if (self::isWindows()) {
-            return '\\\\.\\pipe\\parallite_'.getmypid();
+            return '\\\\.\\pipe\\parallite_' . getmypid();
         }
 
-        return sys_get_temp_dir().'/parallite_'.getmypid().'.sock';
+        return sys_get_temp_dir() . '/parallite_' . getmypid() . '.sock';
     }
 
     /**
      * Load daemon configuration from parallite.json
-     * 
+     *
      * @return array<string, mixed>
      */
     public function loadDaemonConfig(): array
@@ -69,10 +69,10 @@ final class ConfigService
             'max_payload_bytes' => 10485760,
         ];
 
-        $clientConfigPath = $this->projectRoot.'/parallite.json';
+        $clientConfigPath = $this->projectRoot . '/parallite.json';
         $packageRoot = dirname(__DIR__, 2);
-        $packageConfigPath = $packageRoot.'/parallite.json';
-        
+        $packageConfigPath = $packageRoot . '/parallite.json';
+
         $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
 
         if (file_exists($configPath)) {
@@ -80,7 +80,7 @@ final class ConfigService
             if ($json === false) {
                 return $defaults;
             }
-            
+
             $config = json_decode($json, true);
             if (!is_array($config)) {
                 return $defaults;
@@ -99,41 +99,24 @@ final class ConfigService
      */
     public function getConfigPath(): string
     {
-        $clientConfigPath = $this->projectRoot.'/parallite.json';
+        $clientConfigPath = $this->projectRoot . '/parallite.json';
         $packageRoot = dirname(__DIR__, 2);
-        $packageConfigPath = $packageRoot.'/parallite.json';
-        
+        $packageConfigPath = $packageRoot . '/parallite.json';
+
         return file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
     }
 
     /**
      * Find the Parallite binary executable
-     * 
+     *
+     * @return string Binary full path
+     *
      * @throws RuntimeException If binary not found
      */
     public function findBinary(): string
     {
-        $binaryName = self::isWindows() ? 'parallite.exe' : 'parallite';
-        
-        $paths = [
-            $this->projectRoot.'/vendor/bin/'.$binaryName,
-            $this->projectRoot.'/bin/'.$binaryName,
-        ];
-        
-        if (!self::isWindows()) {
-            $paths[] = '/usr/local/bin/parallite';
-        }
+        $resolver = new BinaryResolverService();
 
-        foreach ($paths as $path) {
-            if (file_exists($path)) {
-                if (self::isWindows() || is_executable($path)) {
-                    return $path;
-                }
-            }
-        }
-
-        throw new RuntimeException(
-            'Parallite binary not found. Please run: composer parallite:install'
-        );
+        return $resolver->getBinaryPath();
     }
 }
