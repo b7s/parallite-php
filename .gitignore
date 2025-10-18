@@ -8,5 +8,4 @@
 .DS_Store
 Thumbs.db
 test-*.php
-/bin/parallite-bin/*.bin
-/bin/parallite-bin/*.exe
+/bin/parallite-bin/parallite-*
