@@ -234,7 +234,7 @@ Then add to `parallite.json`:
 **Important:** Do not use the HTTP kernel. This caused the PHP worker process
 to die prematurely before sending responses back to the Go daemon.
 
-_(Maybe other frameworks need a similar solution)_
+_(Maybe other frameworks have a similar solution)_
 
 ## Extension Not Loaded
 

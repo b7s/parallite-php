@@ -118,6 +118,16 @@ Parallite provides significant speedup for I/O-bound and CPU-bound tasks:
 | 5 × 2s  | 10.0s      | ~2.0s    | **5.0x**  |
 | 10 × 1s | 10.0s      | ~1.0s    | **10.0x** |
 
+```
+Parallelism is beneficial when:
+
+✅ CPU-intensive operations (image processing, complex calculations)
+✅ Independent I/O-bound operations (external API calls, multiple databases)
+✅ Database with good concurrency (MongoDB, PostgreSQL, SQL Server, MySQL)
+❌ SQLite with concurrent writes
+❌ Operations are already very fast
+```
+
 ### Real-World Example
 
 ```php
