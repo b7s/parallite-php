@@ -85,7 +85,10 @@ release:
 		echo "✅ Working tree is clean."; \
 	fi; \
 	echo "🧪 Running full test suite..."; \
-	composer test || (echo "❌ Tests failed. Fix issues before releasing." && exit 1); \
+	if ! composer test; then \
+		echo "❌ Tests failed. Fix issues before releasing."; \
+		exit 1; \
+	fi; \
 	echo "🚀 Pushing commits to origin..."; \
 	git push origin HEAD || echo "⚠️  No commits to push (working tree was clean)"; \
 	echo "🏷️  Creating tag v$$VERSION_INPUT..."; \

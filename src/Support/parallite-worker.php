@@ -114,7 +114,7 @@ register_shutdown_function(function () {
 
     $error = error_get_last();
 
-    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         $errorMsg = "Fatal error: {$error['message']} in {$error['file']} on line {$error['line']}";
         error_log("[$workerName] $errorMsg");
 
@@ -129,7 +129,7 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
     global $workerName;
 
     // Don't handle suppressed errors (@)
-    if (!(error_reporting() & $errno)) {
+    if ((error_reporting() & $errno) === 0) {
         return false;
     }
 
