@@ -27,9 +27,11 @@ enabling real parallel execution of PHP code without the limitations of traditio
 ## 📋 Requirements
 
 - PHP 8.3+
-- ext-msgpack
 - ext-sockets
+- ext-pcntl
 - ext-zip
+- rybakit/msgpack
+- opis/closure
 - Composer 2+
 
 ## 📦 Installation

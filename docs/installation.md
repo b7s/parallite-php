@@ -4,10 +4,12 @@ Parallite ships as a Composer package plus a lightweight Go daemon. Install the 
 
 ## Requirements
 
-- PHP 8.3 or higher
-- `ext-msgpack`
-- `ext-sockets`
-- `ext-zip`
+- PHP 8.3+
+- ext-sockets
+- ext-pcntl
+- ext-zip
+- rybakit/msgpack
+- opis/closure
 - Composer 2+
 
 ## Package
@@ -39,7 +41,8 @@ Add the install/update scripts to your `composer.json`:
 
 > See `composer.json.example` for a full example.
 
-Then run `composer install` or `composer update`. The binary is placed at `vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin` (or `.exe` on Windows).
+Then run `composer install` or `composer update`. The binary is placed at
+`vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin` (or `.exe` on Windows).
 
 ### Option 2 · One-Time Install
 
@@ -71,7 +74,6 @@ php vendor/parallite/parallite-php/bin/parallite-update
 
 #### Update Flags
 
-- `--force` · allow updates across major versions
 - `--version=X.Y.Z` · install a specific release directly
 
 Examples:
@@ -80,3 +82,14 @@ Examples:
 php vendor/parallite/parallite-php/bin/parallite-update --force
 php vendor/parallite/parallite-php/bin/parallite-update --version=1.2.3
 ```
+
+## Requirements Explained
+
+- **PHP 8.3+**: The minimum PHP version required for all features to work correctly.
+- **ext-sockets**: Required for inter-process communication between PHP and the Go daemon.
+- **ext-pcntl**: Used for process control functions to manage child processes.
+- **ext-zip**: Required for handling zip archives during the installation and update process for Parallite Go binary,
+  from GitHub.
+- **rybakit/msgpack**: A pure PHP implementation of MessagePack for efficient data serialization.
+- **opis/closure**: Provides tools to serialize closures and anonymous functions.
+- **Composer 2+**: Required for dependency management and package installation.
