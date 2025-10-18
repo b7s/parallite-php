@@ -332,6 +332,36 @@ Create a `parallite.json` file in your project root:
 }
 ```
 
+### Laravel:
+
+Create a dedicated bootstrap file (`bootstrap/parallite.php`) that:
+
+- Loads the Composer autoloader
+- Bootstraps the Laravel application using the Console Kernel
+- Makes the Laravel application available without executing HTTP lifecycle
+
+#### See the code of [bootstrap/parallite.php](examples/boot-laravel-app.php).
+
+Include the Parallite bootstrap in the `parallite.json` file at the root of your project:
+
+```json
+{
+  "php_includes": [
+    "bootstrap/parallite.php"
+  ],
+  ...
+}
+```
+
+> Don't use the HTTP kernel, which executes the full HTTP request lifecycle including:
+> - Capturing HTTP requests (Request::capture())
+> - Sending HTTP responses (->send())
+> - Terminating the application ($kernel->terminate())
+>
+> This caused the PHP worker process to die prematurely before sending responses back to the Go daemon.
+
+(Maybe other frameworks need a similar solution)
+
 ### PHP Settings
 
 #### `php_includes` (array)

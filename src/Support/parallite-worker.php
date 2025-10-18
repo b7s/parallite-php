@@ -51,12 +51,12 @@ if (file_exists($configPath)) {
                     if (!is_string($include)) {
                         continue;
                     }
-                    
+
                     // Check if it's a full path (starts with "/" or has ":" as second character for Windows)
                     $isFullPath = str_starts_with($include, '/') || (strlen($include) > 1 && $include[1] === ':');
-                    
+
                     $includePath = $isFullPath ? $include : $configRoot . '/' . $include;
-                    
+
                     if (file_exists($includePath)) {
                         require_once $includePath;
                     }
@@ -71,6 +71,9 @@ $workerNameFromEnv = getenv('WORKER_NAME');
 $workerName = $workerNameFromEnv !== false ? $workerNameFromEnv : 'worker_' . getmypid();
 $defaultBenchmark = $config['enable_benchmark'] ?? false;
 
+// Track current task ID for error handling
+$currentTaskId = null;
+
 // Log function
 function workerLog(string $message): void
 {
@@ -80,6 +83,60 @@ function workerLog(string $message): void
         error_log("[$workerName] $message");
     }
 }
+
+// Send error response helper
+function sendErrorResponse(string $taskId, string $error): void
+{
+    global $workerName;
+
+    try {
+        $response = [
+            'ok' => false,
+            'error' => $error,
+            'task_id' => $taskId,
+        ];
+
+        $responsePacked = MessagePack::pack($response);
+        $responseLength = pack('N', strlen($responsePacked));
+
+        fwrite(STDOUT, $responseLength . $responsePacked);
+        fflush(STDOUT);
+
+        error_log("[$workerName] Sent error response for task $taskId: $error");
+    } catch (Throwable $e) {
+        error_log("[$workerName] Failed to send error response: {$e->getMessage()}");
+    }
+}
+
+// Register shutdown function to catch fatal errors
+register_shutdown_function(function () {
+    global $currentTaskId, $workerName;
+
+    $error = error_get_last();
+
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        $errorMsg = "Fatal error: {$error['message']} in {$error['file']} on line {$error['line']}";
+        error_log("[$workerName] $errorMsg");
+
+        if ($currentTaskId !== null) {
+            sendErrorResponse($currentTaskId, $errorMsg);
+        }
+    }
+});
+
+// Set error handler for non-fatal errors
+set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+    global $workerName;
+
+    // Don't handle suppressed errors (@)
+    if (!(error_reporting() & $errno)) {
+        return false;
+    }
+
+    error_log("[$workerName] PHP Error [$errno]: $errstr in $errfile on line $errline");
+
+    return false; // Let PHP handle it normally
+});
 
 workerLog('Worker started');
 
@@ -139,6 +196,9 @@ while (true) {
         workerLog('Invalid request: task_id is not a string');
         continue;
     }
+
+    // Track current task for error handling
+    $currentTaskId = $taskId;
 
     // Check if request has payload (closure) or other format
     if (!isset($request['payload'])) {
@@ -293,6 +353,9 @@ while (true) {
     fwrite(STDOUT, $responseLength . $responsePacked);
     fflush(STDOUT);
     workerLog("Response sent for task: $taskId");
+
+    // Clear current task after completion
+    $currentTaskId = null;
 }
 
-workerLog('Worker shutting down');
+workerLog('Parallite Worker shutting down');
