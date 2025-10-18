@@ -84,6 +84,48 @@ function workerLog(string $message): void
     }
 }
 
+// Light normalization - only convert objects, preserve arrays as-is
+function lightNormalize(mixed $data, int $depth = 0): mixed
+{
+    if ($depth > 10) {
+        return $data; // Prevent infinite recursion
+    }
+
+    if (is_object($data)) {
+        // Convert objects to arrays
+        if (method_exists($data, 'toArray')) {
+            // Eloquent models, Collections, etc.
+            $data = $data->toArray();
+        } elseif ($data instanceof \DateTimeInterface) {
+            // DateTime objects
+            return [
+                '_type' => 'datetime',
+                'value' => $data->format('c'),
+                'timezone' => $data->getTimezone()->getName(),
+            ];
+        } else {
+            // stdClass and other objects
+            $data = (array) $data;
+        }
+    }
+
+    if (is_array($data)) {
+        // Recursively normalize nested values, preserving array structure
+        $normalized = [];
+        foreach ($data as $key => $value) {
+            $normalized[$key] = lightNormalize($value, $depth + 1);
+        }
+        return $normalized;
+    }
+
+    // Handle special float values
+    if (is_float($data) && (is_nan($data) || is_infinite($data))) {
+        return null;
+    }
+
+    return $data;
+}
+
 // Send error response helper
 function sendErrorResponse(string $taskId, string $error): void
 {
@@ -277,6 +319,15 @@ while (true) {
         $peakAfterExecution = memory_get_peak_usage(false);
 
         workerLog("Closure executed successfully");
+
+        // Normalize result to handle complex objects (Eloquent, Collections, DateTime)
+        // This preserves array keys but converts objects to arrays
+        try {
+            $result = lightNormalize($result);
+        } catch (Throwable $e) {
+            workerLog("Failed to normalize result: {$e->getMessage()}");
+            // Continue with original result
+        }
 
         // Collect benchmark metrics if enabled
         if ($benchmarkEnabled) {
