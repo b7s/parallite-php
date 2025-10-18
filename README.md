@@ -18,11 +18,11 @@ enabling real parallel execution of PHP code without the limitations of traditio
 ## ✨ Features
 
 - 🚀 **True Parallel Execution** - Execute multiple PHP closures simultaneously
-- ⚡ **Binary MessagePack Transport** - Ultra-fast daemon communication (2-5x faster than JSON)
-- 🔄 **Promise Chaining** - Chainable `then()`, `catch()`, and `finally()` methods
 - 🎯 **Simple async/await API** - Familiar Promise-like interface
+- 🔄 **Promise Chaining** - Chainable `then()`, `catch()`, and `finally()` methods
 - 🌍 **Cross-platform** - Works on Windows, Linux and macOS
-- 🎯 **Automatic Daemon Management** - Optional auto-start/stop of Parallite daemon
+- ⏯️️ **Automatic Daemon Management** - Optional auto-start/stop of Parallite daemon
+- ⚡ **Binary MessagePack Transport** - Ultra-fast daemon communication (2-5x faster than JSON)
 
 ## 📋 Requirements
 
@@ -105,6 +105,7 @@ echo $result; // Caught: Task failed: Oops!
 - **[Installation](docs/installation.md)** - Detailed installation instructions
 - **[Configuration](docs/configuration.md)** - Customize daemon behavior and PHP includes
 - **[API Reference](docs/api-reference.md)** - Complete API documentation
+- **[Complex Data Handling](docs/complex-data-handling.md)** - How to handle complex data structures
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](examples/)** - Real-world usage examples
 

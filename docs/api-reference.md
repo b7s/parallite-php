@@ -4,7 +4,8 @@ Complete API documentation for Parallite PHP Client.
 
 ## Helper Functions (Recommended)
 
-> **No Imports Required!** The `async()` and `await()` functions are available globally after `require 'vendor/autoload.php';`
+> **No Imports Required!** The `async()` and `await()` functions are available globally after
+`require 'vendor/autoload.php';`
 
 ### `async(Closure $closure, ?bool $enableBenchmark = null): Promise`
 
@@ -303,3 +304,6 @@ $results = $client->awaitAll([
 - You need the `awaitAll()` batch method
 
 **For most use cases, use the `async()` and `await()` helpers instead.**
+
+> How to handle complex data structures, see:
+> **[Complex Data Handling](docs/complex-data-handling.md)**
