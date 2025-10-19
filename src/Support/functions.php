@@ -161,25 +161,46 @@ namespace {
         }
     }
 
-    if (!function_exists('dd')) {
+    if (!function_exists('pd')) {
         /**
-         * Dump the passed variables and end the script.
+         * Parallite Dump debugging function
          *
-         * @param mixed ...$values
+         * Dump the passed variables and end the script inside async calls.
+         *
+         * @param mixed ...$values Pass variables to dump pd($var1, $var2, ...)
          * @return void
          */
-        function dd(mixed ...$values): void
+        function pd(mixed ...$values): void
         {
+            $dump = '';
+            
+            $backtrace = debug_backtrace(limit: 1);
+            $caller = $backtrace[0];
+
+            $callerInfo = sprintf(
+                "\nCalled from %s:%d\n%s%s%s\n\n",
+                $caller['file'] ?? 'unknown file',
+                $caller['line'] ?? 0,
+                $caller['class'] ?? '',
+                $caller['type'] ?? '',
+                $caller['function'] ?? 'unknown'
+            );
+
             if (count($values) > 0) {
-                foreach ($values as $value) {
-                    var_dump($value);
-                    echo "\n" . str_repeat('=', 50) . "\n";
-                }
+                $dump .= "\n" . str_repeat('=', 50) . "\n\n";
+                $dump .= preg_replace('/^[^\n]*\n/', '', $callerInfo);
+
+                ob_start();
+                var_dump($values);
+                $output = ob_get_clean();
+
+                $dump .= preg_replace('/^[^\n]*\n/', '', $output);
+                $dump .= "\n" . str_repeat('=', 50) . "\n\n";
             } else {
-                echo '[Nothing to dump]';
+                $dump = $callerInfo . '[Nothing to dump]';
             }
 
-            exit(1);
+            throw new \Exception($dump, 1);
         }
     }
 }

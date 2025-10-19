@@ -46,6 +46,16 @@ final class Promise
     }
 
     /**
+     * Allow promise to be invoked directly
+     *
+     * @return TReturn
+     */
+    public function __invoke(): mixed
+    {
+        return $this->resolve();
+    }
+
+    /**
      * Start the async execution if not already started
      *
      * @return array{socket: Socket, task_id: string}
@@ -96,7 +106,6 @@ final class Promise
             $futureRef = &$this->future;
             $result = $this->client->await($futureRef);
 
-            // Extract benchmark data if available
             if (isset($this->future['benchmark'])) {
                 $this->benchmark = BenchmarkData::fromArray($this->future['benchmark']);
             }
@@ -116,7 +125,6 @@ final class Promise
                         $isError = true;
                     }
                 }
-                // If in error state, skip this then handler
             } elseif ($handler['type'] === 'catch') {
                 if ($isError) {
                     try {
@@ -124,12 +132,9 @@ final class Promise
                         $isError = false;
                     } catch (Throwable $e) {
                         $exception = $e;
-                        // Stay in error state with new exception
                     }
                 }
-                // If not in error state, skip this catch handler
             }
-            // finally handlers are processed separately at the end
         }
 
         // Apply finally callbacks (always run, don't modify result)
@@ -141,7 +146,7 @@ final class Promise
 
         // Throw if still in error state
         if ($isError) {
-            if (!$exception instanceof Throwable) {
+            if (!($exception instanceof Throwable)) {
                 throw new RuntimeException('Promise rejected without exception instance.');
             }
 
@@ -190,16 +195,6 @@ final class Promise
         $this->handlers[] = ['type' => 'finally', 'callback' => $finally];
 
         return $this;
-    }
-
-    /**
-     * Allow promise to be invoked directly
-     *
-     * @return TReturn
-     */
-    public function __invoke(): mixed
-    {
-        return $this->resolve();
     }
 
     /**

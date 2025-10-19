@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues and solutions when working with Parallite.
+Common issues and solutions when working with Parallite. You can use `pd()` inside `async()` calls, it will throw an exception with the dump data.
 
 ## Binary Not Found
 

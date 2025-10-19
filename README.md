@@ -119,7 +119,7 @@ echo $result; // Caught: Task failed: Oops!
 Parallite provides significant speedup for I/O-bound and CPU-bound tasks:
 
 | Tasks   | Sequential | Parallel | Speedup   |
-|---------|------------|----------|-----------|
+| ------- | ---------- | -------- | --------- |
 | 3 × 1s  | 3.0s       | ~1.0s    | **3.0x**  |
 | 5 × 2s  | 10.0s      | ~2.0s    | **5.0x**  |
 | 10 × 1s | 10.0s      | ~1.0s    | **10.0x** |
@@ -157,7 +157,7 @@ RUN_REAL_WORLD_TESTS=1 vendor/bin/pest tests/Feature/RealWorldDataProcessingTest
 ## 🌐 Platform Support
 
 | Platform    | Status            | Notes                |
-|-------------|-------------------|----------------------|
+| ----------- | ----------------- | -------------------- |
 | **Linux**   | ✅ Fully Supported | x86_64, ARM64        |
 | **macOS**   | ✅ Fully Supported | Intel, Apple Silicon |
 | **Windows** | ✅ Fully Supported | x86_64, ARM64        |
@@ -166,7 +166,9 @@ RUN_REAL_WORLD_TESTS=1 vendor/bin/pest tests/Feature/RealWorldDataProcessingTest
 
 Having issues? Check the **[Troubleshooting Guide](docs/troubleshooting.md)** for solutions.
 
-**Quick tip:** Never capture `$this` in closures passed to `async()`. Use static methods or extract primitives instead.
+**Quick tip:** 
+- You can use `pd()` inside `async()` calls, it will throw an exception with the dump data.
+- Never capture `$this` in closures passed to `async()`. Use static methods or extract primitives instead.
 
 ## 🤝 Contributing
 
