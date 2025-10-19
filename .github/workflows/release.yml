@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sockets, zip
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install Parallite
+        run: php bin/parallite-install
+
+      - name: Verify Parallite Binary Installation
+        run: |
+          echo "Checking for Parallite binary..."
+          ls -la bin/parallite-bin/ || echo "Binary directory not found"
+          if [ -d "bin/parallite-bin" ]; then
+            chmod +x bin/parallite-bin/parallite-* || true
+            ls -la bin/parallite-bin/
+          fi
+
+      - name: Run Tests
+        run: composer test
+
+      - name: Show Daemon Logs on Failure
+        if: failure()
+        run: |
+          echo "=== Checking for daemon logs ==="
+          ls -la /tmp/parallite*.log 2>/dev/null || echo "No log files found"
+          for log in /tmp/parallite*.log; do
+            if [ -f "$log" ]; then
+              echo "=== Contents of $log ==="
+              cat "$log"
+            fi
+          done
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release v${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

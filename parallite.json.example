@@ -1,0 +1,13 @@
+{
+  "php_includes": [
+    "bootstrap/app.php",
+    "config/database.php"
+  ],
+  "enable_benchmark": false,
+  "go_overrides": {
+    "timeout_ms": 900000,
+    "fixed_workers": 0,
+    "prefix_name": "parallite_worker",
+    "fail_mode": "continue"
+  }
+}

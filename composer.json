@@ -1,0 +1,79 @@
+{
+  "name": "parallite/parallite-php",
+  "description": "Standalone PHP client for Parallite - Execute PHP closures in true parallel",
+  "type": "library",
+  "keywords": [
+    "parallel",
+    "php",
+    "go",
+    "laravel",
+    "async",
+    "concurrency",
+    "parallite",
+    "closure",
+    "multiprocessing"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Bruno Tenorio",
+      "email": "b7s@outlook.com"
+    }
+  ],
+  "require": {
+    "php": "^8.3",
+    "ext-sockets": "*",
+    "ext-zip": "*",
+    "ext-pcntl": "*",
+    "opis/closure": "^4.3",
+    "rybakit/msgpack": "^0.9.1"
+  },
+  "require-dev": {
+    "pestphp/pest": "^4.0",
+    "phpstan/phpstan": "^2.0",
+    "phpstan/phpstan-strict-rules": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Parallite\\": "src/"
+    },
+    "files": [
+      "src/Support/functions.php"
+    ]
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "bin": [
+    "bin/parallite-install",
+    "bin/parallite-update"
+  ],
+  "scripts": {
+    "post-install-cmd": [
+      "@parallite:install"
+    ],
+    "post-update-cmd": [
+      "@parallite:update"
+    ],
+    "parallite:install": "php bin/parallite-install",
+    "parallite:update": "php bin/parallite-update",
+    "test": [
+      "@test:unit",
+      "@test:types"
+    ],
+    "test:types": "@php vendor/bin/phpstan analyse --memory-limit=2G",
+    "test:unit": "@php vendor/bin/pest --no-coverage",
+    "test:coverage": "@php vendor/bin/pest --coverage"
+  },
+  "config": {
+    "sort-packages": true,
+    "preferred-install": "dist",
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

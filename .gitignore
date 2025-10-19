@@ -1,0 +1,11 @@
+/vendor/
+/bin/parallite-bin/parallite-*
+/composer.lock
+/.phpunit.cache
+/build/
+/.idea/
+/.vscode/
+*.log
+.DS_Store
+Thumbs.db
+test-*.php
