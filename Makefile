@@ -74,6 +74,11 @@ release:
 			MESSAGE_INPUT="Release v$$VERSION_INPUT"; \
 		fi; \
 	fi; \
+	echo "🧪 Running full test suite..."; \
+	if ! composer test; then \
+		echo "❌ Tests failed. Fix issues before releasing."; \
+		exit 1; \
+	fi; \
 	echo "🔍 Checking for uncommitted changes..."; \
 	if ! git diff --quiet || ! git diff --cached --quiet; then \
 		echo "📝 Found uncommitted changes. Staging files..."; \
@@ -83,11 +88,6 @@ release:
 		git commit -m "$$MESSAGE_INPUT" || true; \
 	else \
 		echo "✅ Working tree is clean."; \
-	fi; \
-	echo "🧪 Running full test suite..."; \
-	if ! composer test; then \
-		echo "❌ Tests failed. Fix issues before releasing."; \
-		exit 1; \
 	fi; \
 	echo "🚀 Pushing commits to origin..."; \
 	git push origin HEAD || echo "⚠️  No commits to push (working tree was clean)"; \

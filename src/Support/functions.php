@@ -183,7 +183,7 @@ namespace {
                 $caller['line'] ?? 0,
                 $caller['class'] ?? '',
                 $caller['type'] ?? '',
-                $caller['function'] ?? 'unknown'
+                $caller['function']
             );
 
             if (count($values) > 0) {
@@ -194,7 +194,7 @@ namespace {
                 var_dump($values);
                 $output = ob_get_clean();
 
-                $dump .= preg_replace('/^[^\n]*\n/', '', $output);
+                $dump .= preg_replace('/^[^\n]*\n/', '', (string) $output);
                 $dump .= "\n" . str_repeat('=', 50) . "\n\n";
             } else {
                 $dump = $callerInfo . '[Nothing to dump]';
