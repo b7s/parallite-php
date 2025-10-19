@@ -46,7 +46,7 @@ final class BinaryResolverService
 
         if ($binaryPath === null) {
             throw new RuntimeException(
-                'Parallite binary not found. Please run: `composer parallite:install` or `composer parallite:update`'
+                'Parallite binary not found. Please run: `composer update` or try `composer parallite:install` or `composer parallite:update`'
             );
         }
 

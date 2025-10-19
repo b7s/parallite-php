@@ -60,6 +60,9 @@ Add the install/update scripts to your `composer.json`:
 After adding the scripts, run (to download Parallite binary):
 
 ```bash
+composer install
+
+# or update
 composer update
 ```
 
