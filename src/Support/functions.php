@@ -173,7 +173,7 @@ namespace {
         function pd(mixed ...$values): void
         {
             $dump = '';
-            
+
             $backtrace = debug_backtrace(limit: 1);
             $caller = $backtrace[0];
 
