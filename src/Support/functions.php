@@ -128,8 +128,6 @@ namespace Parallite {
 }
 
 namespace {
-
-    use JetBrains\PhpStorm\NoReturn;
     use Parallite\Promise;
 
     // Global aliases for convenience - use async() and await() without namespace imports
@@ -175,7 +173,7 @@ namespace {
             if (count($values) > 0) {
                 foreach ($values as $value) {
                     var_dump($value);
-                    echo "\n================================\n";
+                    echo "\n" . str_repeat('=', 50) . "\n";
                 }
             } else {
                 echo '[Nothing to dump]';
