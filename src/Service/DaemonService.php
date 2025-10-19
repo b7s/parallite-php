@@ -65,7 +65,6 @@ final class DaemonService
         $binaryPath = $this->configService->findBinary();
         $config = $this->configService->loadDaemonConfig();
 
-        // Log the binary version being used
         $version = $this->getBinaryVersion($binaryPath);
         error_log("Starting Parallite daemon (version: {$version})");
 

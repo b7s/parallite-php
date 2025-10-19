@@ -41,6 +41,8 @@ final class DataNormalizerService
 
     /**
      * Normalize array for MessagePack
+     * 
+     * Check if array has mixed key types or non-sequential integer keys
      *
      * MessagePack has issues with:
      * - Mixed integer/string keys
@@ -55,7 +57,6 @@ final class DataNormalizerService
             return $data;
         }
 
-        // Check if array has mixed key types or non-sequential integer keys
         $hasStringKeys = false;
         $hasIntKeys = false;
         $isSequential = true;
@@ -73,9 +74,7 @@ final class DataNormalizerService
             }
         }
 
-        // Handle different array types
         if ($hasStringKeys && !$hasIntKeys) {
-            // Pure associative array (string keys only) - safe, keep as is
             return array_map(function ($value) use ($maxDepth, $currentDepth) {
                 return self::normalize($value, $maxDepth, $currentDepth + 1);
             }, $data);
@@ -100,13 +99,11 @@ final class DataNormalizerService
      */
     private static function normalizeObject(object $data, int $maxDepth, int $currentDepth): array
     {
-        // Handle common Laravel/Eloquent objects
         if (method_exists($data, 'toArray')) {
             $array = $data->toArray();
             return self::normalizeArray($array, $maxDepth, $currentDepth + 1);
         }
 
-        // Handle DateTime objects
         if ($data instanceof DateTimeInterface) {
             return [
                 '_type' => 'datetime',

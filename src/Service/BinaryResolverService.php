@@ -41,7 +41,6 @@ final class BinaryResolverService
             return $cached;
         }
 
-        // Cache miss or invalid - find latest binary
         $binaryPath = $this->findLatestBinary();
 
         if ($binaryPath === null) {
@@ -50,7 +49,6 @@ final class BinaryResolverService
             );
         }
 
-        // Update cache
         $this->setCachedBinaryPath($binaryPath);
 
         return $binaryPath;
@@ -96,13 +94,11 @@ final class BinaryResolverService
             return null;
         }
 
-        // Extract versions and find the latest
         $versions = [];
 
         foreach ($files as $file) {
             $basename = basename($file);
 
-            // Extract version from filename: parallite-1.2.3
             $matchResult = preg_match('/parallite-(\d+\.\d+\.\d+)$/', $basename, $matches);
             if ($matchResult === 1 && is_file($file)) {
                 $version = $matches[1];
@@ -114,12 +110,8 @@ final class BinaryResolverService
             return null;
         }
 
-        // Sort versions using version_compare
-        uksort($versions, function ($a, $b) {
-            return version_compare($b, $a); // Descending order
-        });
+        uksort($versions, static fn($a, $b) => version_compare($b, $a));
 
-        // Return the latest version
         return reset($versions);
     }
 
@@ -177,20 +169,16 @@ final class BinaryResolverService
      */
     private function findParallitePhpRoot(): string
     {
-        // Start from this file's directory (src/Service)
         $dir = __DIR__;
 
-        // Go up to package root (2 levels: Service -> src -> root)
         $packageRoot = dirname($dir, 2);
 
-        // Check if we're in the package itself (development or standalone)
         if (file_exists($packageRoot . '/composer.json')) {
             $composerJson = file_get_contents($packageRoot . '/composer.json');
             if ($composerJson !== false) {
                 $composer = json_decode($composerJson, true);
                 if (is_array($composer) && isset($composer['name']) && is_string($composer['name'])) {
                     $packageName = $composer['name'];
-                    // Check if it's the parallite-php package (any vendor namespace)
                     if (str_contains($packageName, '/parallite-php')) {
                         return $packageRoot;
                     }
@@ -198,14 +186,11 @@ final class BinaryResolverService
             }
         }
 
-        // We're installed as a dependency - find in vendor
         $projectRoot = ProjectRootFinderService::find($dir);
 
-        // Search for parallite-php in vendor directory
         $vendorDir = $projectRoot . '/vendor';
 
         if (is_dir($vendorDir)) {
-            // Scan vendor directory for parallite-php
             $vendors = glob($vendorDir . '/*', GLOB_ONLYDIR);
 
             if ($vendors !== false) {

@@ -175,7 +175,7 @@ namespace {
             if (count($values) > 0) {
                 foreach ($values as $value) {
                     var_dump($value);
-                    echo "\n\n";
+                    echo "\n================================\n";
                 }
             } else {
                 echo '[Nothing to dump]';

@@ -18,12 +18,11 @@ final class ConfigService
         if ($projectRoot !== null) {
             $this->projectRoot = $projectRoot;
         } else {
-            // Try to use current working directory first (works when installed as dependency)
             $cwd = getcwd();
+
             if ($cwd !== false && file_exists($cwd . '/vendor/autoload.php')) {
                 $this->projectRoot = $cwd;
             } else {
-                // Fallback to searching from package directory
                 $this->projectRoot = ProjectRootFinderService::find(dirname(__DIR__));
             }
         }
