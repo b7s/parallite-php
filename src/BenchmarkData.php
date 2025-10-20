@@ -6,7 +6,7 @@ namespace Parallite;
 
 /**
  * Benchmark data returned by Parallite daemon
- * 
+ *
  * Contains performance metrics about task execution including:
  * - Execution time
  * - Memory delta (change during task)
@@ -20,7 +20,9 @@ readonly class BenchmarkData
         public float $memoryDeltaMb,
         public float $memoryPeakMb,
         public float $cpuTimeMs,
-    ) {}
+    )
+    {
+    }
 
     /**
      * Create from daemon response array
@@ -34,7 +36,7 @@ readonly class BenchmarkData
         $memoryDelta = $data['memory_delta_mb'] ?? 0.0;
         $memoryPeak = $data['memory_peak_mb'] ?? 0.0;
         $cpuTime = $data['cpu_time_ms'] ?? 0.0;
-        
+
         return new self(
             executionTimeMs: is_numeric($executionTime) ? (float)$executionTime : 0.0,
             memoryDeltaMb: is_numeric($memoryDelta) ? (float)$memoryDelta : 0.0,
@@ -66,7 +68,7 @@ readonly class BenchmarkData
     public function __toString(): string
     {
         return sprintf(
-            "Execution: %.2fms | Memory Δ: %.2fMB | Peak: %.2fMB | CPU: %.2fms",
+            'Execution: %.2fms | Memory Δ: %.2fMB | Peak: %.2fMB | CPU: %.2fms',
             $this->executionTimeMs,
             $this->memoryDeltaMb,
             $this->memoryPeakMb,
