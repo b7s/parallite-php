@@ -29,6 +29,7 @@
     "rybakit/msgpack": "^0.9.1"
   },
   "require-dev": {
+    "laravel/pint": "^1.25",
     "pestphp/pest": "^4.0",
     "phpstan/phpstan": "^2.0",
     "phpstan/phpstan-strict-rules": "^2.0"

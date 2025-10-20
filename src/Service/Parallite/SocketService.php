@@ -20,6 +20,9 @@ use Throwable;
  */
 final readonly class SocketService
 {
+    private const MAX_PORT_ATTEMPTS = 128;
+    private const PORT_RANGE_END = 65535;
+
     public function __construct(
         private string $socketPath,
         private bool   $enableBenchmark = false
@@ -53,20 +56,70 @@ final readonly class SocketService
                 throw new RuntimeException('Failed to create TCP socket');
             }
 
-            if (!@socket_connect($socket, $host, $port)) {
-                throw new RuntimeException("Failed to connect to daemon at: {$host}:{$port}");
+            $attempts = 0;
+            $connected = false;
+            $lastError = '';
+            
+            // Try to connect to the original port first
+            if (@socket_connect($socket, $host, $port)) {
+                $connected = true;
+            } else {
+                $lastError = socket_strerror(socket_last_error($socket));
+                socket_clear_error($socket);
+                
+                // If it fails, try alternative ports
+                $currentPort = $port + 1;
+                $attempts = 1;
+                
+                while ($attempts < self::MAX_PORT_ATTEMPTS && $currentPort <= self::PORT_RANGE_END) {
+                    socket_close($socket);
+                    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+                    
+                    if ($socket === false) {
+                        $lastError = 'Failed to create TCP socket';
+                        break;
+                    }
+                    
+                    if (@socket_connect($socket, $host, $currentPort)) {
+                        $connected = true;
+                        $port = $currentPort; // Update the current port to the one that worked
+                        break;
+                    }
+                    
+                    $lastError = socket_strerror(socket_last_error($socket));
+                    socket_clear_error($socket);
+                    
+                    $currentPort++;
+                    $attempts++;
+                }
+            }
+
+            if (!$connected) {
+                if ($socket !== false) {
+                    socket_close($socket);
+                }
+
+                throw new RuntimeException(sprintf(
+                    'Failed to connect to daemon after %d attempts. Last error: %s',
+                    $attempts,
+                    $lastError
+                ));
             }
         } else {
             // Unix domain socket (Linux/macOS)
             $socket = socket_create(AF_UNIX, SOCK_STREAM, 0);
 
             if ($socket === false) {
-                throw new RuntimeException('Failed to create Unix socket');
+                throw new RuntimeException('Failed to create Unix socket - ' . socket_strerror(socket_last_error()));
             }
 
             if (!@socket_connect($socket, $this->socketPath)) {
-                throw new RuntimeException('Failed to connect to daemon at: ' . $this->socketPath);
+                throw new RuntimeException('Failed to connect to daemon at: `' . $this->socketPath . '` - ' . socket_strerror(socket_last_error()));
             }
+        }
+
+        if ($socket === false) {
+            throw new RuntimeException('Failed to write to socket - ' . socket_strerror(socket_last_error()));
         }
 
         $taskId = $this->generateTaskId();
@@ -95,8 +148,10 @@ final readonly class SocketService
         $bytesSent = socket_write($socket, $fullMessage, strlen($fullMessage));
 
         if ($bytesSent === false) {
-            socket_close($socket);
-            throw new RuntimeException('Failed to send message');
+            if ($socket !== false) {
+                socket_close($socket);
+            }
+            throw new RuntimeException('Failed to send message - ' . socket_strerror(socket_last_error()));
         }
 
         return ['socket' => $socket, 'task_id' => $taskId];
@@ -135,7 +190,7 @@ final readonly class SocketService
         }
 
         if (!isset($data['ok']) || $data['ok'] !== true) {
-            throw new RuntimeException('Task failed: ' . ($data['error'] ?? 'unknown error'));
+            throw new RuntimeException('Task failed (awaitTask): ' . ($data['error'] ?? 'unknown error'));
         }
 
         if (isset($data['benchmark']) && is_array($data['benchmark'])) {
@@ -166,7 +221,7 @@ final readonly class SocketService
             }
 
             if ($chunk === '') {
-                throw new RuntimeException('Failed to read response: EOF');
+                throw new RuntimeException('Failed to read response: EOF {1}');
             }
 
             $lengthData .= $chunk;
@@ -191,7 +246,7 @@ final readonly class SocketService
             }
 
             if ($chunk === '') {
-                throw new RuntimeException('Failed to read response: EOF');
+                throw new RuntimeException('Failed to read response: EOF {2}');
             }
 
             $data .= $chunk;

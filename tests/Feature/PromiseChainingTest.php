@@ -34,7 +34,7 @@ describe('Promise Chaining', function () {
 
         $result = $this->client->await($promise);
 
-        expect($result)->toBe('Rescued: Task failed: Error');
+        expect($result)->toBe('Rescued: Task failed (awaitTask): Error');
     });
 
     it('chains then after catch', function () {
@@ -163,7 +163,7 @@ describe('Helper Functions', function () {
 
         $result = await($promise);
 
-        expect($result)->toBe('Rescued: Task failed: Error');
+        expect($result)->toBe('Rescued: Task failed (awaitTask): Error');
     });
 
     it('chains complex operations with helpers', function () {
@@ -242,7 +242,7 @@ describe('Helper Functions', function () {
 
         expect($result)->toBe(21)
             ->and($calls)->toBe([
-                'caught: Task failed: broken',
+                'caught: Task failed (awaitTask): broken',
                 'then-after-catch',
             ]);
     });

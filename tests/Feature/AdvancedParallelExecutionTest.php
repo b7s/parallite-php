@@ -68,8 +68,8 @@ describe('Advanced Parallel Execution', function () {
             ->toHaveKey(0, 'success 1')
             ->toHaveKey(2, 'success 2')
             ->and($errors)
-            ->toHaveKey(1, 'Task failed: error 1')
-            ->toHaveKey(3, 'Task failed: error 2');
+            ->toHaveKey(1, 'Task failed (awaitTask): error 1')
+            ->toHaveKey(3, 'Task failed (awaitTask): error 2');
     });
 
     it('processes multiple file operations in parallel', function () {
