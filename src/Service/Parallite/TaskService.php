@@ -16,15 +16,14 @@ final readonly class TaskService
 {
     public function __construct(
         private SocketService $socketService
-    )
-    {
-    }
+    ) {}
 
     /**
      * Await multiple closures in parallel
      *
-     * @param array<Closure> $closures
+     * @param  array<Closure>  $closures
      * @return array<mixed>
+     *
      * @throws Throwable
      */
     public function awaitAll(array $closures): array
@@ -45,8 +44,9 @@ final readonly class TaskService
     /**
      * Await multiple promises/futures in parallel
      *
-     * @param array<Promise|array{socket: Socket|null, task_id: string}|mixed> $promises
+     * @param  array<Promise|array{socket: Socket|null, task_id: string}|mixed>  $promises
      * @return array<mixed>
+     *
      * @throws Throwable
      */
     public function awaitMultiple(array $promises): array

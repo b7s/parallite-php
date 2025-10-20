@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 
 // Load ProjectRootFinderService first (before autoloader)
-require_once dirname(__DIR__) . '/Service/Parallite/ProjectRootFinderService.php';
+require_once dirname(__DIR__).'/Service/Parallite/ProjectRootFinderService.php';
 
 use MessagePack\MessagePack;
 use Parallite\Service\Parallite\ProjectRootFinderService;
@@ -17,9 +17,9 @@ use Parallite\Service\Parallite\ProjectRootFinderService;
 $projectRoot = ProjectRootFinderService::find(__DIR__);
 
 // Load autoloader
-$autoloadPath = $projectRoot . '/vendor/autoload.php';
-if (!file_exists($autoloadPath)) {
-    error_log('[Worker] Autoloader not found at: ' . $autoloadPath);
+$autoloadPath = $projectRoot.'/vendor/autoload.php';
+if (! file_exists($autoloadPath)) {
+    error_log('[Worker] Autoloader not found at: '.$autoloadPath);
     exit(1);
 }
 
@@ -27,9 +27,9 @@ require_once $autoloadPath;
 
 // Load configuration and includes
 // Priority: 1. Client project root, 2. Package root
-$clientConfigPath = $projectRoot . '/parallite.json';
+$clientConfigPath = $projectRoot.'/parallite.json';
 $packageRoot = dirname(__DIR__, 2); // From src/Support/ to package root
-$packageConfigPath = $packageRoot . '/parallite.json';
+$packageConfigPath = $packageRoot.'/parallite.json';
 
 $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
 $configRoot = file_exists($clientConfigPath) ? $projectRoot : $packageRoot;
@@ -48,14 +48,14 @@ if (file_exists($configPath)) {
 
             if (isset($config['php_includes']) && is_array($config['php_includes'])) {
                 foreach ($config['php_includes'] as $include) {
-                    if (!is_string($include)) {
+                    if (! is_string($include)) {
                         continue;
                     }
 
                     // Check if it's a full path (starts with "/" or has ":" as second character for Windows)
                     $isFullPath = str_starts_with($include, '/') || (strlen($include) > 1 && $include[1] === ':');
 
-                    $includePath = $isFullPath ? $include : $configRoot . '/' . $include;
+                    $includePath = $isFullPath ? $include : $configRoot.'/'.$include;
 
                     if (file_exists($includePath)) {
                         require_once $includePath;
@@ -68,7 +68,7 @@ if (file_exists($configPath)) {
 
 // Get worker name from environment
 $workerNameFromEnv = getenv('WORKER_NAME');
-$workerName = $workerNameFromEnv !== false ? $workerNameFromEnv : 'worker_' . getmypid();
+$workerName = $workerNameFromEnv !== false ? $workerNameFromEnv : 'worker_'.getmypid();
 $defaultBenchmark = $config['enable_benchmark'] ?? false;
 
 // Track current task ID for error handling
@@ -105,7 +105,7 @@ function lightNormalize(mixed $data, int $depth = 0): mixed
             ];
         } else {
             // stdClass and other objects
-            $data = (array)$data;
+            $data = (array) $data;
         }
     }
 
@@ -115,6 +115,7 @@ function lightNormalize(mixed $data, int $depth = 0): mixed
         foreach ($data as $key => $value) {
             $normalized[$key] = lightNormalize($value, $depth + 1);
         }
+
         return $normalized;
     }
 
@@ -141,7 +142,7 @@ function sendErrorResponse(string $taskId, string $error): void
         $responsePacked = MessagePack::pack($response);
         $responseLength = pack('N', strlen($responsePacked));
 
-        fwrite(STDOUT, $responseLength . $responsePacked);
+        fwrite(STDOUT, $responseLength.$responsePacked);
         fflush(STDOUT);
 
         error_log("[$workerName] Sent error response for task $taskId: $error");
@@ -219,23 +220,27 @@ while (true) {
     try {
         $request = MessagePack::unpack($payload);
     } catch (Throwable $e) {
-        workerLog('Invalid request: failed to unpack MessagePack - ' . $e->getMessage());
+        workerLog('Invalid request: failed to unpack MessagePack - '.$e->getMessage());
+
         continue;
     }
 
-    if (!is_array($request)) {
+    if (! is_array($request)) {
         workerLog('Invalid request: not a valid array');
+
         continue;
     }
 
-    if (!isset($request['task_id'])) {
+    if (! isset($request['task_id'])) {
         workerLog('Invalid request: missing task_id');
+
         continue;
     }
 
     $taskId = $request['task_id'];
-    if (!is_string($taskId)) {
+    if (! is_string($taskId)) {
         workerLog('Invalid request: task_id is not a string');
+
         continue;
     }
 
@@ -243,7 +248,7 @@ while (true) {
     $currentTaskId = $taskId;
 
     // Check if request has payload (closure) or other format
-    if (!isset($request['payload'])) {
+    if (! isset($request['payload'])) {
         workerLog("Invalid request for task $taskId: missing payload (closure expected)");
 
         // Send error response
@@ -257,17 +262,19 @@ while (true) {
             $responsePacked = MessagePack::pack($response);
         } catch (Throwable $e) {
             workerLog("Failed to pack response: {$e->getMessage()}");
+
             continue;
         }
         $responseLength = pack('N', strlen($responsePacked));
-        fwrite(STDOUT, $responseLength . $responsePacked);
+        fwrite(STDOUT, $responseLength.$responsePacked);
         fflush(STDOUT);
 
         continue;
     }
 
-    if (!is_string($request['payload'])) {
+    if (! is_string($request['payload'])) {
         workerLog("Invalid request for task {$taskId}: payload is not a string");
+
         continue;
     }
 
@@ -282,7 +289,7 @@ while (true) {
     $benchmarkEnabled = $request['enable_benchmark'] ?? $defaultBenchmark;
 
     $benchmarkSource = isset($request['enable_benchmark']) ? 'request' : 'config';
-    workerLog('Benchmark enabled: ' . ($benchmarkEnabled ? 'true' : 'false') . " (source: $benchmarkSource)");
+    workerLog('Benchmark enabled: '.($benchmarkEnabled ? 'true' : 'false')." (source: $benchmarkSource)");
 
     // Initialize benchmark metrics
     $benchmark = null;
@@ -306,7 +313,7 @@ while (true) {
         $closure = \Opis\Closure\unserialize($serialized);
         workerLog('Closure deserialized successfully');
 
-        if (!$closure instanceof Closure) {
+        if (! $closure instanceof Closure) {
             throw new RuntimeException('Deserialized payload is not a closure');
         }
 
@@ -349,11 +356,11 @@ while (true) {
             // Calculate CPU time (user + system) in milliseconds
             $totalCpuTimeMs = 0.0;
             if (is_array($startRusage) && is_array($endRusage)) {
-                $userTimeMsStart = (is_numeric($startRusage['ru_utime.tv_sec'] ?? 0) ? (int)$startRusage['ru_utime.tv_sec'] : 0) * 1000 + (is_numeric($startRusage['ru_utime.tv_usec'] ?? 0) ? (int)$startRusage['ru_utime.tv_usec'] : 0) / 1000;
-                $systemTimeMsStart = (is_numeric($startRusage['ru_stime.tv_sec'] ?? 0) ? (int)$startRusage['ru_stime.tv_sec'] : 0) * 1000 + (is_numeric($startRusage['ru_stime.tv_usec'] ?? 0) ? (int)$startRusage['ru_stime.tv_usec'] : 0) / 1000;
+                $userTimeMsStart = (is_numeric($startRusage['ru_utime.tv_sec'] ?? 0) ? (int) $startRusage['ru_utime.tv_sec'] : 0) * 1000 + (is_numeric($startRusage['ru_utime.tv_usec'] ?? 0) ? (int) $startRusage['ru_utime.tv_usec'] : 0) / 1000;
+                $systemTimeMsStart = (is_numeric($startRusage['ru_stime.tv_sec'] ?? 0) ? (int) $startRusage['ru_stime.tv_sec'] : 0) * 1000 + (is_numeric($startRusage['ru_stime.tv_usec'] ?? 0) ? (int) $startRusage['ru_stime.tv_usec'] : 0) / 1000;
 
-                $userTimeMsEnd = (is_numeric($endRusage['ru_utime.tv_sec'] ?? 0) ? (int)$endRusage['ru_utime.tv_sec'] : 0) * 1000 + (is_numeric($endRusage['ru_utime.tv_usec'] ?? 0) ? (int)$endRusage['ru_utime.tv_usec'] : 0) / 1000;
-                $systemTimeMsEnd = (is_numeric($endRusage['ru_stime.tv_sec'] ?? 0) ? (int)$endRusage['ru_stime.tv_sec'] : 0) * 1000 + (is_numeric($endRusage['ru_stime.tv_usec'] ?? 0) ? (int)$endRusage['ru_stime.tv_usec'] : 0) / 1000;
+                $userTimeMsEnd = (is_numeric($endRusage['ru_utime.tv_sec'] ?? 0) ? (int) $endRusage['ru_utime.tv_sec'] : 0) * 1000 + (is_numeric($endRusage['ru_utime.tv_usec'] ?? 0) ? (int) $endRusage['ru_utime.tv_usec'] : 0) / 1000;
+                $systemTimeMsEnd = (is_numeric($endRusage['ru_stime.tv_sec'] ?? 0) ? (int) $endRusage['ru_stime.tv_sec'] : 0) * 1000 + (is_numeric($endRusage['ru_stime.tv_usec'] ?? 0) ? (int) $endRusage['ru_stime.tv_usec'] : 0) / 1000;
 
                 $userTimeMs = $userTimeMsEnd - $userTimeMsStart;
                 $systemTimeMs = $systemTimeMsEnd - $systemTimeMsStart;
@@ -388,7 +395,7 @@ while (true) {
             'task_id' => $taskId,
         ];
 
-        workerLog("Task $taskId failed: " . $e->getMessage());
+        workerLog("Task $taskId failed: ".$e->getMessage());
     }
 
     // Send response
@@ -397,11 +404,12 @@ while (true) {
         $responsePacked = MessagePack::pack($response);
     } catch (Throwable $e) {
         workerLog("Failed to pack response for task {$taskId}: {$e->getMessage()}");
+
         continue;
     }
     $responseLength = pack('N', strlen($responsePacked));
 
-    fwrite(STDOUT, $responseLength . $responsePacked);
+    fwrite(STDOUT, $responseLength.$responsePacked);
     fflush(STDOUT);
     workerLog("Response sent for task: $taskId");
 

@@ -10,17 +10,19 @@ use RuntimeException;
 final class BinaryInstallerService
 {
     private BinaryResolverService $binaryResolver;
+
     private GitHubReleaseService $githubService;
+
     private FileExtractorService $fileExtractor;
+
     private VersionService $versionService;
 
     public function __construct(
         BinaryResolverService $binaryResolver,
-        GitHubReleaseService  $githubService,
-        FileExtractorService  $fileExtractor,
-        VersionService        $versionService
-    )
-    {
+        GitHubReleaseService $githubService,
+        FileExtractorService $fileExtractor,
+        VersionService $versionService
+    ) {
         $this->binaryResolver = $binaryResolver;
         $this->githubService = $githubService;
         $this->fileExtractor = $fileExtractor;
@@ -31,6 +33,7 @@ final class BinaryInstallerService
     {
         if ($version !== null) {
             $this->installSpecificVersion($version);
+
             return;
         }
 
@@ -59,6 +62,7 @@ final class BinaryInstallerService
         } elseif (file_exists($binPath)) {
             echo "Parallite binary already installed at: {$binPath}\n";
             echo "Use --force to reinstall.\n";
+
             return;
         }
 
@@ -108,6 +112,7 @@ final class BinaryInstallerService
             $version = ltrim($version, 'v');
             echo "[Force] Installing specific version: {$version}...\n";
             $this->installSpecificVersion($version);
+
             return;
         }
 
@@ -118,12 +123,14 @@ final class BinaryInstallerService
         if ($currentVersion === null) {
             echo "No current version found. Installing latest version...\n";
             $this->install(force: true);
+
             return;
         }
 
         if ($currentVersion === 'unknown') {
             echo "Warning: Could not determine current version. Proceeding with update...\n";
             $this->install(force: true);
+
             return;
         }
 
@@ -131,13 +138,14 @@ final class BinaryInstallerService
 
         if ($latestVersion === null) {
             echo "Could not check for updates. Please try again later.\n";
+
             return;
         }
 
         // Remove 'v' prefix if present
         $latestVersion = ltrim($latestVersion, 'v');
 
-        if (!$this->versionService->isSameMajorVersion($currentVersion, $latestVersion)) {
+        if (! $this->versionService->isSameMajorVersion($currentVersion, $latestVersion)) {
             if ($force) {
                 echo "⚠ Warning: Forcing update across major versions ({$currentVersion} → {$latestVersion})\n";
                 echo "  This may include breaking changes. Proceed with caution.\n";
@@ -150,6 +158,7 @@ final class BinaryInstallerService
                 echo "  Current major version: {$currentMajor}\n";
                 echo "  Latest major version: {$latestMajor}\n";
                 echo "  Use --force to override this check or specify a version with --version=X.Y.Z\n";
+
                 return;
             }
         }
@@ -159,6 +168,7 @@ final class BinaryInstallerService
 
         if (version_compare($currentVersion, $latestVersion, '>=')) {
             echo "✓ Already up to date (version {$currentVersion})\n";
+
             return;
         }
 
@@ -170,11 +180,11 @@ final class BinaryInstallerService
     {
         $binariesDir = $this->binaryResolver->getBinariesDirectory();
 
-        if (!is_dir($binariesDir)) {
+        if (! is_dir($binariesDir)) {
             mkdir($binariesDir, 0755, true);
         }
 
-        return $binariesDir . "/parallite-{$version}";
+        return $binariesDir."/parallite-{$version}";
     }
 
     /**
@@ -210,7 +220,7 @@ final class BinaryInstallerService
     private function downloadAndExtract(string $url, string $destination, string $platform, string $extension, string $version): void
     {
         $tmpDir = sys_get_temp_dir();
-        $archivePath = $tmpDir . '/parallite-' . uniqid() . '.' . $extension;
+        $archivePath = $tmpDir.'/parallite-'.uniqid().'.'.$extension;
 
         // Download archive
         $context = stream_context_create([

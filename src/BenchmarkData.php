@@ -20,15 +20,12 @@ readonly class BenchmarkData
         public float $memoryDeltaMb,
         public float $memoryPeakMb,
         public float $cpuTimeMs,
-    )
-    {
-    }
+    ) {}
 
     /**
      * Create from daemon response array
      *
-     * @param array<string, mixed> $data
-     * @return self
+     * @param  array<string, mixed>  $data
      */
     public static function fromArray(array $data): self
     {
@@ -38,10 +35,10 @@ readonly class BenchmarkData
         $cpuTime = $data['cpu_time_ms'] ?? 0.0;
 
         return new self(
-            executionTimeMs: is_numeric($executionTime) ? (float)$executionTime : 0.0,
-            memoryDeltaMb: is_numeric($memoryDelta) ? (float)$memoryDelta : 0.0,
-            memoryPeakMb: is_numeric($memoryPeak) ? (float)$memoryPeak : 0.0,
-            cpuTimeMs: is_numeric($cpuTime) ? (float)$cpuTime : 0.0,
+            executionTimeMs: is_numeric($executionTime) ? (float) $executionTime : 0.0,
+            memoryDeltaMb: is_numeric($memoryDelta) ? (float) $memoryDelta : 0.0,
+            memoryPeakMb: is_numeric($memoryPeak) ? (float) $memoryPeak : 0.0,
+            cpuTimeMs: is_numeric($cpuTime) ? (float) $cpuTime : 0.0,
         );
     }
 
@@ -62,8 +59,6 @@ readonly class BenchmarkData
 
     /**
      * Format as human-readable string
-     *
-     * @return string
      */
     public function __toString(): string
     {

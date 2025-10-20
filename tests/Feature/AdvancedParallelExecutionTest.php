@@ -24,10 +24,11 @@ describe('Advanced Parallel Execution', function () {
         foreach ($chunks as $chunk) {
             $tasks[] = function () use ($chunk) {
                 usleep(50000); // 50ms
+
                 return array_map(fn ($n) => $n * $n, $chunk);
             };
         }
-        
+
         $processedChunks = $this->client->awaitAll($tasks);
 
         $duration = microtime(true) - $start;
@@ -79,6 +80,7 @@ describe('Advanced Parallel Execution', function () {
         foreach ($files as $file) {
             $tasks[] = function () use ($file) {
                 usleep(50000); // Simulate file processing
+
                 return [
                     'file' => $file,
                     'size' => strlen($file) * 100,
@@ -86,7 +88,7 @@ describe('Advanced Parallel Execution', function () {
                 ];
             };
         }
-        
+
         $fileResults = $this->client->awaitAll($tasks);
 
         expect($fileResults)
@@ -117,14 +119,17 @@ describe('Advanced Parallel Execution', function () {
         $results = $this->client->awaitAll([
             function () {
                 usleep(100000);
+
                 return 'slow';
             },
             function () {
                 usleep(10000);
+
                 return 'fast';
             },
             function () {
                 usleep(50000);
+
                 return 'medium';
             },
         ]);
@@ -142,6 +147,7 @@ describe('Advanced Parallel Execution', function () {
         for ($i = 0; $i < $taskCount; $i++) {
             $tasks[] = function () {
                 usleep(10000);
+
                 return 'done';
             };
         }
@@ -160,6 +166,7 @@ describe('Advanced Parallel Execution', function () {
         for ($i = 1; $i <= 10; $i++) {
             $futures[] = $this->client->async(function () use ($i) {
                 usleep(rand(10000, 50000));
+
                 return $i;
             });
         }

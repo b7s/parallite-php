@@ -12,7 +12,7 @@ final class ProjectRootFinderService
     /**
      * Find project root by looking for vendor/autoload.php
      *
-     * @param string|null $startDir Starting directory (defaults to caller's directory)
+     * @param  string|null  $startDir  Starting directory (defaults to caller's directory)
      */
     public static function find(?string $startDir = null): string
     {
@@ -20,7 +20,7 @@ final class ProjectRootFinderService
         $maxLevels = 10;
 
         for ($i = 0; $i < $maxLevels; $i++) {
-            if (file_exists($dir . '/vendor/autoload.php')) {
+            if (file_exists($dir.'/vendor/autoload.php')) {
                 return $dir;
             }
 

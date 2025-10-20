@@ -24,11 +24,11 @@ final class VersionService
             return null;
         }
 
-        if (!file_exists($binPath)) {
+        if (! file_exists($binPath)) {
             return null;
         }
 
-        $output = shell_exec(escapeshellarg($binPath) . ' --version 2>&1');
+        $output = shell_exec(escapeshellarg($binPath).' --version 2>&1');
 
         if ($output === null || $output === false) {
             return null;
@@ -54,22 +54,22 @@ final class VersionService
         $parts = explode('.', $version);
 
         /** @phpstan-ignore-next-line */
-        if (count($parts) < 1 || !is_numeric($parts[0])) {
+        if (count($parts) < 1 || ! is_numeric($parts[0])) {
             throw new RuntimeException("Invalid version format: {$version}");
         }
 
-        return (int)$parts[0];
+        return (int) $parts[0];
     }
 
     public function cleanupOldVersions(string $currentVersion): void
     {
         $binariesDir = $this->binaryResolver->getBinariesDirectory();
 
-        if (!is_dir($binariesDir)) {
+        if (! is_dir($binariesDir)) {
             return;
         }
 
-        $pattern = $binariesDir . '/parallite-*';
+        $pattern = $binariesDir.'/parallite-*';
         $files = glob($pattern);
 
         if ($files === false) {

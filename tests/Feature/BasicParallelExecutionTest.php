@@ -18,16 +18,19 @@ describe('Basic Parallel Execution', function () {
 
         $future1 = $this->client->async(function () {
             usleep(100000); // 100ms
+
             return 'Task 1 completed';
         });
 
         $future2 = $this->client->async(function () {
             usleep(100000); // 100ms
+
             return 'Task 2 completed';
         });
 
         $future3 = $this->client->async(function () {
             usleep(100000); // 100ms
+
             return 'Task 3 completed';
         });
 
@@ -49,14 +52,17 @@ describe('Basic Parallel Execution', function () {
         $results = $this->client->awaitAll([
             function () {
                 usleep(100000);
+
                 return 'Task A';
             },
             function () {
                 usleep(100000);
+
                 return 'Task B';
             },
             function () {
                 usleep(100000);
+
                 return 'Task C';
             },
         ]);
@@ -75,6 +81,7 @@ describe('Basic Parallel Execution', function () {
         foreach ($numbers as $n) {
             $futures[] = $this->client->async(function () use ($n) {
                 usleep(10000); // 10ms
+
                 return $n * $n;
             });
         }

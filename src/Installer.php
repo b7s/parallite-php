@@ -20,9 +20,9 @@ final class Installer
     private static function getInstaller(): BinaryInstallerService
     {
         if (self::$installer === null) {
-            $binaryResolver = new BinaryResolverService();
-            $githubService = new GitHubReleaseService();
-            $fileExtractor = new FileExtractorService();
+            $binaryResolver = new BinaryResolverService;
+            $githubService = new GitHubReleaseService;
+            $fileExtractor = new FileExtractorService;
             $versionService = new VersionService($binaryResolver);
 
             self::$installer = new BinaryInstallerService(
@@ -39,8 +39,8 @@ final class Installer
     /**
      * Install the Parallite binary for the current platform.
      *
-     * @param bool        $force   Force reinstall even if binary exists
-     * @param string|null $version Specific version to install (e.g., '1.2.3' or 'v1.2.3')
+     * @param  bool  $force  Force reinstall even if binary exists
+     * @param  string|null  $version  Specific version to install (e.g., '1.2.3' or 'v1.2.3')
      */
     public static function install(bool $force = false, ?string $version = null): void
     {
@@ -51,8 +51,8 @@ final class Installer
      * Update the Parallite binary to the latest version.
      * Only updates within the same major version to prevent breaking changes.
      *
-     * @param bool        $force   Force update even across major versions
-     * @param string|null $version Specific version to install (e.g., '1.2.3' or 'v1.2.3')
+     * @param  bool  $force  Force update even across major versions
+     * @param  string|null  $version  Specific version to install (e.g., '1.2.3' or 'v1.2.3')
      */
     public static function update(bool $force = false, ?string $version = null): void
     {

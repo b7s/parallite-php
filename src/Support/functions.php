@@ -6,12 +6,9 @@ namespace Parallite {
 
     use Closure;
     use Socket;
-    use Throwable;
 
     /**
      * Read benchmark configuration from parallite.json
-     *
-     * @return bool
      */
     function getBenchmarkConfig(): bool
     {
@@ -24,17 +21,18 @@ namespace Parallite {
         // Find project root and config file
         $dir = __DIR__;
         for ($i = 0; $i < 10; $i++) {
-            $configPath = $dir . '/parallite.json';
+            $configPath = $dir.'/parallite.json';
             if (file_exists($configPath)) {
                 $json = file_get_contents($configPath);
                 if ($json === false) {
                     continue;
                 }
                 $data = json_decode($json, true);
-                if (!is_array($data)) {
+                if (! is_array($data)) {
                     continue;
                 }
-                $config = (bool)($data['enable_benchmark'] ?? false);
+                $config = (bool) ($data['enable_benchmark'] ?? false);
+
                 return $config;
             }
 
@@ -47,17 +45,19 @@ namespace Parallite {
 
         // Default to false if no config found
         $config = false;
+
         return $config;
     }
 
-    if (!function_exists('Parallite\async')) {
+    if (! function_exists('Parallite\async')) {
         /**
          * Create a promise for async execution with chainable then/catch/finally
          * See more: https://promisesaplus.com/
          *
          * @template TReturn
-         * @param Closure(): TReturn $closure         Anonymous function to execute
-         * @param bool|null          $enableBenchmark Enable benchmark (null = read from config)
+         *
+         * @param  Closure(): TReturn  $closure  Anonymous function to execute
+         * @param  bool|null  $enableBenchmark  Enable benchmark (null = read from config)
          * @return Promise<TReturn>
          */
         function async(Closure $closure, ?bool $enableBenchmark = null): Promise
@@ -100,14 +100,14 @@ namespace Parallite {
         }
     }
 
-    if (!function_exists('Parallite\await')) {
+    if (! function_exists('Parallite\await')) {
         /**
          * Await a promise or array of promises to resolve
          *
          * @template TReturn
-         * @param Promise<TReturn>|array<Promise<TReturn>>|array{socket: Socket, task_id: string} $promise Single promise or array of promises
-         * @return TReturn|array<TReturn> Single result or array of results (if was a valid promises on array)
          *
+         * @param  Promise<TReturn>|array<Promise<TReturn>>|array{socket: Socket, task_id: string}  $promise  Single promise or array of promises
+         * @return TReturn|array<TReturn> Single result or array of results (if was a valid promises on array)
          */
         function await(Promise|array $promise): mixed
         {
@@ -117,7 +117,7 @@ namespace Parallite {
                 $client = new ParalliteClient(autoManageDaemon: true);
             }
 
-            if (is_array($promise) && !isset($promise['socket'])) {
+            if (is_array($promise) && ! isset($promise['socket'])) {
                 return $client->awaitMultiple($promise);
             }
 
@@ -131,13 +131,14 @@ namespace {
     use Parallite\Promise;
 
     // Global aliases for convenience - use async() and await() without namespace imports
-    if (!function_exists('async')) {
+    if (! function_exists('async')) {
         /**
          * Global alias for Parallite\async()
          *
          * @template TReturn
-         * @param Closure(): TReturn $closure
-         * @param bool|null          $enableBenchmark Enable benchmark (null = read from config)
+         *
+         * @param  Closure(): TReturn  $closure
+         * @param  bool|null  $enableBenchmark  Enable benchmark (null = read from config)
          * @return Promise<TReturn>
          */
         function async(Closure $closure, ?bool $enableBenchmark = null): Promise
@@ -146,13 +147,15 @@ namespace {
         }
     }
 
-    if (!function_exists('await')) {
+    if (! function_exists('await')) {
         /**
          * Global alias for Parallite\await()
          *
          * @template TReturn
-         * @param Promise<TReturn>|array<Promise<TReturn>>|array{socket: Socket, task_id: string} $promise Single promise or array of promises
+         *
+         * @param  Promise<TReturn>|array<Promise<TReturn>>|array{socket: Socket, task_id: string}  $promise  Single promise or array of promises
          * @return TReturn|array<TReturn> Single result or array of results
+         *
          * @throws Throwable
          */
         function await(Promise|array $promise): mixed
@@ -161,14 +164,13 @@ namespace {
         }
     }
 
-    if (!function_exists('pd')) {
+    if (! function_exists('pd')) {
         /**
          * Parallite Dump debugging function
          *
          * Dump the passed variables and end the script inside async calls.
          *
-         * @param mixed ...$values Pass variables to dump pd($var1, $var2, ...)
-         * @return void
+         * @param  mixed  ...$values  Pass variables to dump pd($var1, $var2, ...)
          */
         function pd(mixed ...$values): void
         {
@@ -187,7 +189,7 @@ namespace {
             );
 
             if (count($values) > 0) {
-                $dump .= "\n" . str_repeat('=', 50) . "\n\n";
+                $dump .= "\n".str_repeat('=', 50)."\n\n";
                 $dump .= preg_replace('/^[^\n]*\n/', '', $callerInfo);
 
                 ob_start();
@@ -195,9 +197,9 @@ namespace {
                 $output = ob_get_clean();
 
                 $dump .= preg_replace('/^[^\n]*\n/', '', (string) $output);
-                $dump .= "\n" . str_repeat('=', 50) . "\n\n";
+                $dump .= "\n".str_repeat('=', 50)."\n\n";
             } else {
-                $dump = $callerInfo . '[Nothing to dump]';
+                $dump = $callerInfo.'[Nothing to dump]';
             }
 
             throw new \Exception($dump, 1);

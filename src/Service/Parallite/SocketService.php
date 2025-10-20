@@ -21,20 +21,20 @@ use Throwable;
 final readonly class SocketService
 {
     private const MAX_PORT_ATTEMPTS = 128;
+
     private const PORT_RANGE_END = 65535;
 
     public function __construct(
         private string $socketPath,
-        private bool   $enableBenchmark = false
-    )
-    {
-    }
+        private bool $enableBenchmark = false
+    ) {}
 
     /**
      * Submit a task for parallel execution
      *
-     * @param Closure $closure The closure to execute
+     * @param  Closure  $closure  The closure to execute
      * @return array{socket: Socket, task_id: string}
+     *
      * @throws RuntimeException
      */
     public function submitTask(Closure $closure): array
@@ -48,7 +48,7 @@ final readonly class SocketService
             }
 
             [$host, $port] = $parts;
-            $port = (int)$port;
+            $port = (int) $port;
 
             $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 
@@ -59,42 +59,42 @@ final readonly class SocketService
             $attempts = 0;
             $connected = false;
             $lastError = '';
-            
+
             // Try to connect to the original port first
             if (@socket_connect($socket, $host, $port)) {
                 $connected = true;
             } else {
                 $lastError = socket_strerror(socket_last_error($socket));
                 socket_clear_error($socket);
-                
+
                 // If it fails, try alternative ports
                 $currentPort = $port + 1;
                 $attempts = 1;
-                
+
                 while ($attempts < self::MAX_PORT_ATTEMPTS && $currentPort <= self::PORT_RANGE_END) {
                     socket_close($socket);
                     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-                    
+
                     if ($socket === false) {
                         $lastError = 'Failed to create TCP socket';
                         break;
                     }
-                    
+
                     if (@socket_connect($socket, $host, $currentPort)) {
                         $connected = true;
                         $port = $currentPort; // Update the current port to the one that worked
                         break;
                     }
-                    
+
                     $lastError = socket_strerror(socket_last_error($socket));
                     socket_clear_error($socket);
-                    
+
                     $currentPort++;
                     $attempts++;
                 }
             }
 
-            if (!$connected) {
+            if (! $connected) {
                 if ($socket !== false) {
                     socket_close($socket);
                 }
@@ -110,16 +110,16 @@ final readonly class SocketService
             $socket = socket_create(AF_UNIX, SOCK_STREAM, 0);
 
             if ($socket === false) {
-                throw new RuntimeException('Failed to create Unix socket - ' . socket_strerror(socket_last_error()));
+                throw new RuntimeException('Failed to create Unix socket - '.socket_strerror(socket_last_error()));
             }
 
-            if (!@socket_connect($socket, $this->socketPath)) {
-                throw new RuntimeException('Failed to connect to daemon at: `' . $this->socketPath . '` - ' . socket_strerror(socket_last_error()));
+            if (! @socket_connect($socket, $this->socketPath)) {
+                throw new RuntimeException('Failed to connect to daemon at: `'.$this->socketPath.'` - '.socket_strerror(socket_last_error()));
             }
         }
 
         if ($socket === false) {
-            throw new RuntimeException('Failed to write to socket - ' . socket_strerror(socket_last_error()));
+            throw new RuntimeException('Failed to write to socket - '.socket_strerror(socket_last_error()));
         }
 
         $taskId = $this->generateTaskId();
@@ -139,11 +139,11 @@ final readonly class SocketService
         try {
             $message = MessagePack::pack($messageData);
         } catch (Throwable $e) {
-            throw new RuntimeException('Failed to encode message: ' . $e->getMessage());
+            throw new RuntimeException('Failed to encode message: '.$e->getMessage());
         }
 
         $length = pack('N', strlen($message));
-        $fullMessage = $length . $message;
+        $fullMessage = $length.$message;
 
         $bytesSent = socket_write($socket, $fullMessage, strlen($fullMessage));
 
@@ -151,7 +151,7 @@ final readonly class SocketService
             if ($socket !== false) {
                 socket_close($socket);
             }
-            throw new RuntimeException('Failed to send message - ' . socket_strerror(socket_last_error()));
+            throw new RuntimeException('Failed to send message - '.socket_strerror(socket_last_error()));
         }
 
         return ['socket' => $socket, 'task_id' => $taskId];
@@ -160,14 +160,15 @@ final readonly class SocketService
     /**
      * Await the result of a previously submitted task
      *
-     * @param array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}     $future
+     * @param  array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}  $future
+     *
      * @param-out array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>} $future
-     * @return mixed
+     *
      * @throws RuntimeException|Throwable
      */
     public function awaitTask(array &$future): mixed
     {
-        if (!isset($future['socket'])) {
+        if (! isset($future['socket'])) {
             throw new RuntimeException('No socket provided');
         }
 
@@ -182,15 +183,15 @@ final readonly class SocketService
         try {
             $data = MessagePack::unpack($response);
         } catch (Throwable $e) {
-            throw new RuntimeException('Invalid response from daemon: ' . $e->getMessage());
+            throw new RuntimeException('Invalid response from daemon: '.$e->getMessage());
         }
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new RuntimeException('Invalid response from daemon: not an array');
         }
 
-        if (!isset($data['ok']) || $data['ok'] !== true) {
-            throw new RuntimeException('Task failed (awaitTask): ' . ($data['error'] ?? 'unknown error'));
+        if (! isset($data['ok']) || $data['ok'] !== true) {
+            throw new RuntimeException('Task failed (awaitTask): '.($data['error'] ?? 'unknown error'));
         }
 
         if (isset($data['benchmark']) && is_array($data['benchmark'])) {
@@ -263,11 +264,11 @@ final readonly class SocketService
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+            mt_rand(0, 0xFFFF), mt_rand(0, 0xFFFF),
+            mt_rand(0, 0xFFFF),
+            mt_rand(0, 0x0FFF) | 0x4000,
+            mt_rand(0, 0x3FFF) | 0x8000,
+            mt_rand(0, 0xFFFF), mt_rand(0, 0xFFFF), mt_rand(0, 0xFFFF)
         );
     }
 }

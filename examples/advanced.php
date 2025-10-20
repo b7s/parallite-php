@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 /**
  * Advanced Parallite Example - Real-World Use Cases
- * 
+ *
  * This example demonstrates advanced usage patterns including:
  * - Parallel API calls
  * - Data processing pipelines
  * - Error handling strategies
  * - Performance monitoring
- * 
+ *
  * Uses the global async() and await() functions - no setup required!
  */
 
@@ -26,17 +26,17 @@ echo "---------------------\n";
 
 $start = microtime(true);
 
-$p1 = async(fn() => [
+$p1 = async(fn () => [
     'service' => 'users',
     'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/users/1'), true),
 ]);
 
-$p2 = async(fn() => [
+$p2 = async(fn () => [
     'service' => 'posts',
     'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/posts/1'), true),
 ]);
 
-$p3 = async(fn() => [
+$p3 = async(fn () => [
     'service' => 'comments',
     'data' => json_decode(file_get_contents('https://jsonplaceholder.typicode.com/comments/1'), true),
 ]);
@@ -45,9 +45,9 @@ $apiResults = [await($p1), await($p2), await($p3)];
 
 $duration = round(microtime(true) - $start, 2);
 
-echo "   Fetched " . count($apiResults) . " APIs in {$duration}s\n";
+echo '   Fetched '.count($apiResults)." APIs in {$duration}s\n";
 foreach ($apiResults as $result) {
-    echo "   - {$result['service']}: " . ($result['data']['id'] ?? 'N/A') . "\n";
+    echo "   - {$result['service']}: ".($result['data']['id'] ?? 'N/A')."\n";
 }
 echo "\n";
 
@@ -66,19 +66,20 @@ foreach ($chunks as $chunk) {
     $promises[] = async(function () use ($chunk) {
         // Simulate heavy processing
         usleep(100000); // 100ms
-        return array_map(fn($n) => $n * $n, $chunk);
+
+        return array_map(fn ($n) => $n * $n, $chunk);
     });
 }
 
-$processedChunks = array_map(fn($p) => await($p), $promises);
+$processedChunks = array_map(fn ($p) => await($p), $promises);
 
 $duration = round(microtime(true) - $start, 2);
 
 $allResults = array_merge(...$processedChunks);
 
-echo "   Processed " . count($data) . " items in " . count($chunks) . " chunks\n";
+echo '   Processed '.count($data).' items in '.count($chunks)." chunks\n";
 echo "   Duration: {$duration}s\n";
-echo "   Results: " . implode(', ', array_slice($allResults, 0, 10)) . "...\n\n";
+echo '   Results: '.implode(', ', array_slice($allResults, 0, 10))."...\n\n";
 
 // Example 3: Error Handling with catch()
 echo "3. Error Handling with catch()\n";
@@ -91,7 +92,7 @@ $result = await(
             return 'Success!';
         }
         throw new RuntimeException('Simulated failure');
-    })->catch(fn($e) => 'Recovered from: ' . $e->getMessage())
+    })->catch(fn ($e) => 'Recovered from: '.$e->getMessage())
 );
 
 echo "   Result: {$result}\n\n";
@@ -103,25 +104,26 @@ echo "-----------------------\n";
 $tasks = range(1, 15);
 $promises = [];
 
-echo "   Submitting tasks: ";
+echo '   Submitting tasks: ';
 foreach ($tasks as $i) {
     $promises[] = async(function () use ($i) {
         usleep(rand(100000, 500000)); // Random delay 100-500ms
+
         return "Task {$i} completed";
     });
-    echo ".";
+    echo '.';
 }
 echo " Done!\n";
 
-echo "   Collecting results: ";
+echo '   Collecting results: ';
 $results = [];
 foreach ($promises as $promise) {
     $results[] = await($promise);
-    echo ".";
+    echo '.';
 }
 echo " Done!\n";
 
-echo "   Completed " . count($results) . " tasks\n\n";
+echo '   Completed '.count($results)." tasks\n\n";
 
 // Example 5: Parallel File Processing with then()
 echo "5. Parallel File Processing with then()\n";
@@ -134,17 +136,18 @@ foreach ($files as $file) {
     $filePromises[] = async(function () use ($file) {
         // Simulate file processing
         usleep(200000); // 200ms
+
         return [
             'file' => $file,
             'size' => rand(1000, 10000),
             'lines' => rand(10, 100),
         ];
-    })->then(fn($data) => array_merge($data, ['processed' => true]));
+    })->then(fn ($data) => array_merge($data, ['processed' => true]));
 }
 
-$fileResults = array_map(fn($p) => await($p), $filePromises);
+$fileResults = array_map(fn ($p) => await($p), $filePromises);
 
-echo "   Processed " . count($fileResults) . " files:\n";
+echo '   Processed '.count($fileResults)." files:\n";
 foreach ($fileResults as $result) {
     echo "   - {$result['file']}: {$result['lines']} lines, {$result['size']} bytes\n";
 }

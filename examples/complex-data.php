@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 echo "=== Complex Data Handling with Parallite ===\n\n";
 
@@ -25,11 +25,11 @@ try {
         ];
     }));
 } catch (Throwable $e) {
-    echo 'Error: ' . $e->getMessage() . "\n\n";
+    echo 'Error: '.$e->getMessage()."\n\n";
     exit(1);
 }
 
-echo 'Result: ' . json_encode($result1, JSON_PRETTY_PRINT) . "\n\n";
+echo 'Result: '.json_encode($result1, JSON_PRETTY_PRINT)."\n\n";
 
 // Example 2: DateTime objects (automatically normalized)
 echo "2. DateTime Objects\n";
@@ -38,24 +38,24 @@ echo "--------------------\n";
 $result2 = await(async(function () {
     return [
         'created_at' => new DateTime('2024-01-15 10:30:00'),
-        'updated_at' => new DateTime(),
+        'updated_at' => new DateTime,
         'data' => ['status' => 'active'],
     ];
 }));
 
-echo 'Result: ' . json_encode($result2, JSON_PRETTY_PRINT) . "\n\n";
+echo 'Result: '.json_encode($result2, JSON_PRETTY_PRINT)."\n\n";
 
 // Example 3: stdClass Objects
 echo "3. stdClass Objects\n";
 echo "--------------------\n";
 
 $result3 = await(async(function () {
-    $user1 = new stdClass();
+    $user1 = new stdClass;
     $user1->id = 1;
     $user1->name = 'Alice';
     $user1->email = 'alice@example.com';
 
-    $user2 = new stdClass();
+    $user2 = new stdClass;
     $user2->id = 2;
     $user2->name = 'Bob';
     $user2->email = 'bob@example.com';
@@ -63,7 +63,7 @@ $result3 = await(async(function () {
     return ['users' => [$user1, $user2]];
 }));
 
-echo 'Users: ' . json_encode($result3, JSON_PRETTY_PRINT) . "\n\n";
+echo 'Users: '.json_encode($result3, JSON_PRETTY_PRINT)."\n\n";
 
 // Example 4: Mixed Key Types (Preserved!)
 echo "4. Mixed Key Types\n";
@@ -81,6 +81,6 @@ $result4 = await(async(function () {
     ];
 }));
 
-echo 'Result: ' . json_encode($result4, JSON_PRETTY_PRINT) . "\n\n";
+echo 'Result: '.json_encode($result4, JSON_PRETTY_PRINT)."\n\n";
 
 echo "=== All examples completed successfully! ===\n";

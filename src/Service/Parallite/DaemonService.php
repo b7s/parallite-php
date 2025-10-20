@@ -14,18 +14,16 @@ final class DaemonService
     private ?int $daemonPid = null;
 
     public function __construct(
-        private readonly string        $socketPath,
+        private readonly string $socketPath,
         private readonly ConfigService $configService
-    )
-    {
-    }
+    ) {}
 
     /**
      * Check if daemon is running
      */
     public function isDaemonRunning(): bool
     {
-        if (!file_exists($this->socketPath)) {
+        if (! file_exists($this->socketPath)) {
             return false;
         }
 
@@ -73,7 +71,7 @@ final class DaemonService
         }
 
         $configPath = $this->configService->getConfigPath();
-        $logFile = sys_get_temp_dir() . '/parallite_client_' . getmypid() . '.log';
+        $logFile = sys_get_temp_dir().'/parallite_client_'.getmypid().'.log';
 
         if (ConfigService::isWindows()) {
             $this->startDaemonWindows($binaryPath, $configPath, $config, $logFile);
@@ -87,7 +85,8 @@ final class DaemonService
     /**
      * Start daemon on Unix-like systems (Linux/macOS)
      *
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
+     *
      * @throws RuntimeException
      */
     private function startDaemonUnix(string $binaryPath, string $configPath, array $config, string $logFile): void
@@ -115,7 +114,7 @@ final class DaemonService
         if ($output === null || $output === false) {
             throw new RuntimeException('Failed to execute daemon start command');
         }
-        $this->daemonPid = (int)trim($output);
+        $this->daemonPid = (int) trim($output);
 
         if ($this->daemonPid === 0) {
             $logContent = 'Log not found';
@@ -132,7 +131,7 @@ final class DaemonService
     /**
      * Start daemon on Windows
      *
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     private function startDaemonWindows(string $binaryPath, string $configPath, array $config, string $logFile): void
     {
@@ -196,6 +195,7 @@ final class DaemonService
         for ($i = 0; $i < $maxAttempts; $i++) {
             if (file_exists($this->socketPath)) {
                 usleep($sleepMs * 1000);
+
                 return;
             }
 
@@ -219,13 +219,14 @@ final class DaemonService
         if (preg_match('/parallite-(\d+\.\d+\.\d+)/', $basename, $matches) === 1) {
             return $matches[1];
         }
+
         return 'unknown';
     }
 
     /**
      * Extract, validate and transform daemon configuration with defaults
      *
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      * @return array{timeoutMs: int, fixedWorkers: int, prefixName: string, failMode: string}
      */
     private function extractDaemonConfig(array $config): array

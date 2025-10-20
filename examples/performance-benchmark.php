@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Performance Benchmark - Using Daemon Benchmark Data
- * 
+ *
  * This example demonstrates:
  * - Collecting benchmark data from the Parallite daemon
  * - Analyzing execution time, memory, and CPU usage per task
@@ -12,7 +12,7 @@ declare(strict_types=1);
  * - Understanding memory behavior in persistent workers
  */
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 echo "🎯 === Performance Benchmark ===\n\n";
 echo "📊 This benchmark collects performance data from the Parallite daemon.\n";
@@ -22,39 +22,40 @@ $timeStart = microtime(true);
 
 // Test 1: Light workload (small, fast tasks)
 echo "1️⃣  🪶 Light Workload (20 small tasks)\n";
-echo "   " . str_repeat("─", 50) . "\n";
+echo '   '.str_repeat('─', 50)."\n";
 
 $promises = [];
 for ($i = 1; $i <= 20; $i++) {
     $promises[] = async(function () use ($i) {
         usleep(10000); // 10ms
+
         return $i * 2;
     }, enableBenchmark: true);
 }
 
 $start = microtime(true);
-$results = array_map(fn($p) => await($p), $promises);
+$results = array_map(fn ($p) => await($p), $promises);
 $duration = microtime(true) - $start;
 
 // Collect benchmark data
-$benchmarks = array_map(fn($p) => $p->getBenchmark(), $promises);
-$avgExecTime = array_sum(array_map(fn($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$avgCpuTime = array_sum(array_map(fn($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$totalMemDelta = array_sum(array_map(fn($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
-$maxPeak = max(array_map(fn($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
+$benchmarks = array_map(fn ($p) => $p->getBenchmark(), $promises);
+$avgExecTime = array_sum(array_map(fn ($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$avgCpuTime = array_sum(array_map(fn ($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$totalMemDelta = array_sum(array_map(fn ($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
+$maxPeak = max(array_map(fn ($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
 
-echo "   ✓ Completed: " . count($results) . " tasks\n";
-echo "   ⏱️  Total Duration: " . round($duration, 2) . "s\n";
-echo "   🚀 Throughput: " . round(count($results) / max($duration, 0.01), 2) . " tasks/s\n";
-echo "   📊 Avg Execution Time: " . round($avgExecTime, 2) . "ms per task\n";
-echo "   💻 Avg CPU Time: " . round($avgCpuTime, 2) . "ms per task\n";
-echo "   💾 Total Memory Delta: " . round($totalMemDelta, 4) . "MB\n";
-echo "   📈 Max Memory Peak: " . round($maxPeak, 4) . "MB\n";
-echo "   📈 Sum: " . array_sum($results) . "\n\n";
+echo '   ✓ Completed: '.count($results)." tasks\n";
+echo '   ⏱️  Total Duration: '.round($duration, 2)."s\n";
+echo '   🚀 Throughput: '.round(count($results) / max($duration, 0.01), 2)." tasks/s\n";
+echo '   📊 Avg Execution Time: '.round($avgExecTime, 2)."ms per task\n";
+echo '   💻 Avg CPU Time: '.round($avgCpuTime, 2)."ms per task\n";
+echo '   💾 Total Memory Delta: '.round($totalMemDelta, 4)."MB\n";
+echo '   📈 Max Memory Peak: '.round($maxPeak, 4)."MB\n";
+echo '   📈 Sum: '.array_sum($results)."\n\n";
 
 // Test 2: CPU-intensive workload
 echo "2️⃣  🔥 CPU-Intensive Workload (15 tasks)\n";
-echo "   " . str_repeat("─", 50) . "\n";
+echo '   '.str_repeat('─', 50)."\n";
 
 $promises = [];
 for ($i = 1; $i <= 15; $i++) {
@@ -64,66 +65,68 @@ for ($i = 1; $i <= 15; $i++) {
         for ($j = 0; $j < 100000; $j++) {
             $result += sqrt($j);
         }
+
         return $i;
     }, enableBenchmark: true);
 }
 
 $start = microtime(true);
-$results = array_map(fn($p) => await($p), $promises);
+$results = array_map(fn ($p) => await($p), $promises);
 $duration = microtime(true) - $start;
 
 // Collect benchmark data
-$benchmarks = array_map(fn($p) => $p->getBenchmark(), $promises);
-$avgExecTime = array_sum(array_map(fn($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$avgCpuTime = array_sum(array_map(fn($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$totalMemDelta = array_sum(array_map(fn($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
-$maxPeak = max(array_map(fn($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
+$benchmarks = array_map(fn ($p) => $p->getBenchmark(), $promises);
+$avgExecTime = array_sum(array_map(fn ($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$avgCpuTime = array_sum(array_map(fn ($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$totalMemDelta = array_sum(array_map(fn ($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
+$maxPeak = max(array_map(fn ($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
 
-echo "   ✓ Completed: " . count($results) . " tasks\n";
-echo "   ⏱️  Total Duration: " . round($duration, 2) . "s\n";
-echo "   🚀 Throughput: " . round(count($results) / max($duration, 0.01), 2) . " tasks/s\n";
-echo "   📊 Avg Execution Time: " . round($avgExecTime, 2) . "ms per task\n";
-echo "   💻 Avg CPU Time: " . round($avgCpuTime, 2) . "ms per task\n";
-echo "   💾 Total Memory Delta: " . round($totalMemDelta, 4) . "MB\n";
-echo "   📈 Max Memory Peak: " . round($maxPeak, 4) . "MB\n\n";
+echo '   ✓ Completed: '.count($results)." tasks\n";
+echo '   ⏱️  Total Duration: '.round($duration, 2)."s\n";
+echo '   🚀 Throughput: '.round(count($results) / max($duration, 0.01), 2)." tasks/s\n";
+echo '   📊 Avg Execution Time: '.round($avgExecTime, 2)."ms per task\n";
+echo '   💻 Avg CPU Time: '.round($avgCpuTime, 2)."ms per task\n";
+echo '   💾 Total Memory Delta: '.round($totalMemDelta, 4)."MB\n";
+echo '   📈 Max Memory Peak: '.round($maxPeak, 4)."MB\n\n";
 
 // Test 3: Memory-intensive workload
 echo "3️⃣  🧠 Memory-Intensive Workload (10 tasks)\n";
-echo "   " . str_repeat("─", 50) . "\n";
+echo '   '.str_repeat('─', 50)."\n";
 
 $promises = [];
 for ($i = 1; $i <= 10; $i++) {
-    $promises[] = async(function () use ($i) {
+    $promises[] = async(function () {
         // Allocate memory
         $data = array_fill(0, 5000000, 'x'); // ~10MB
         usleep(20000); // Keep data in memory
+
         return count($data);
     }, enableBenchmark: true);
 }
 
 $start = microtime(true);
-$results = array_map(fn($p) => await($p), $promises);
+$results = array_map(fn ($p) => await($p), $promises);
 $duration = microtime(true) - $start;
 
 // Collect benchmark data
-$benchmarks = array_map(fn($p) => $p->getBenchmark(), $promises);
-$avgExecTime = array_sum(array_map(fn($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$avgCpuTime = array_sum(array_map(fn($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$totalMemDelta = array_sum(array_map(fn($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
-$maxPeak = max(array_map(fn($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
+$benchmarks = array_map(fn ($p) => $p->getBenchmark(), $promises);
+$avgExecTime = array_sum(array_map(fn ($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$avgCpuTime = array_sum(array_map(fn ($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$totalMemDelta = array_sum(array_map(fn ($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
+$maxPeak = max(array_map(fn ($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
 
-echo "   ✓ Completed: " . count($results) . " tasks\n";
-echo "   ⏱️  Total Duration: " . round($duration, 2) . "s\n";
-echo "   🚀 Throughput: " . round(count($results) / max($duration, 0.01), 2) . " tasks/s\n";
-echo "   📊 Avg Execution Time: " . round($avgExecTime, 2) . "ms per task\n";
-echo "   💻 Avg CPU Time: " . round($avgCpuTime, 2) . "ms per task\n";
-echo "   💾 Total Memory Delta: " . round($totalMemDelta, 4) . "MB\n";
-echo "   📈 Max Memory Peak: " . round($maxPeak, 4) . "MB\n";
-echo "   📦 Total items processed: " . array_sum($results) . "\n\n";
+echo '   ✓ Completed: '.count($results)." tasks\n";
+echo '   ⏱️  Total Duration: '.round($duration, 2)."s\n";
+echo '   🚀 Throughput: '.round(count($results) / max($duration, 0.01), 2)." tasks/s\n";
+echo '   📊 Avg Execution Time: '.round($avgExecTime, 2)."ms per task\n";
+echo '   💻 Avg CPU Time: '.round($avgCpuTime, 2)."ms per task\n";
+echo '   💾 Total Memory Delta: '.round($totalMemDelta, 4)."MB\n";
+echo '   📈 Max Memory Peak: '.round($maxPeak, 4)."MB\n";
+echo '   📦 Total items processed: '.array_sum($results)."\n\n";
 
 // Test 4: Mixed workload
 echo "4️⃣  🎭 Mixed Workload (20 tasks)\n";
-echo "   " . str_repeat("─", 50) . "\n";
+echo '   '.str_repeat('─', 50)."\n";
 
 $promises = [];
 for ($i = 1; $i <= 20; $i++) {
@@ -135,28 +138,29 @@ for ($i = 1; $i <= 20; $i++) {
         for ($j = 0; $j < 1000; $j++) {
             $result += strlen($data[$j % count($data)]);
         }
+
         return $result;
     }, enableBenchmark: true);
 }
 
 $start = microtime(true);
-$results = array_map(fn($p) => await($p), $promises);
+$results = array_map(fn ($p) => await($p), $promises);
 $duration = microtime(true) - $start;
 
 // Collect benchmark data
-$benchmarks = array_map(fn($p) => $p->getBenchmark(), $promises);
-$avgExecTime = array_sum(array_map(fn($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$avgCpuTime = array_sum(array_map(fn($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
-$totalMemDelta = array_sum(array_map(fn($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
-$maxPeak = max(array_map(fn($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
+$benchmarks = array_map(fn ($p) => $p->getBenchmark(), $promises);
+$avgExecTime = array_sum(array_map(fn ($b) => $b?->executionTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$avgCpuTime = array_sum(array_map(fn ($b) => $b?->cpuTimeMs ?? 0, $benchmarks)) / count($benchmarks);
+$totalMemDelta = array_sum(array_map(fn ($b) => $b?->memoryDeltaMb ?? 0, $benchmarks));
+$maxPeak = max(array_map(fn ($b) => $b?->memoryPeakMb ?? 0, $benchmarks));
 
-echo "   ✓ Completed: " . count($results) . " tasks\n";
-echo "   ⏱️  Total Duration: " . round($duration, 2) . "s\n";
-echo "   🚀 Throughput: " . round(count($results) / max($duration, 0.01), 2) . " tasks/s\n";
-echo "   📊 Avg Execution Time: " . round($avgExecTime, 2) . "ms per task\n";
-echo "   💻 Avg CPU Time: " . round($avgCpuTime, 2) . "ms per task\n";
-echo "   💾 Total Memory Delta: " . round($totalMemDelta, 4) . "MB\n";
-echo "   📈 Max Memory Peak: " . round($maxPeak, 4) . "MB\n\n";
+echo '   ✓ Completed: '.count($results)." tasks\n";
+echo '   ⏱️  Total Duration: '.round($duration, 2)."s\n";
+echo '   🚀 Throughput: '.round(count($results) / max($duration, 0.01), 2)." tasks/s\n";
+echo '   📊 Avg Execution Time: '.round($avgExecTime, 2)."ms per task\n";
+echo '   💻 Avg CPU Time: '.round($avgCpuTime, 2)."ms per task\n";
+echo '   💾 Total Memory Delta: '.round($totalMemDelta, 4)."MB\n";
+echo '   📈 Max Memory Peak: '.round($maxPeak, 4)."MB\n\n";
 
 // Final summary
 $totalDuration = microtime(true) - $timeStart;
@@ -165,9 +169,9 @@ echo "════════════════════════�
 echo "📈 Final Summary\n";
 echo "═══════════════════════════════════════════════════\n\n";
 
-echo "⏱️  Total Duration: " . round($totalDuration, 2) . "s\n";
+echo '⏱️  Total Duration: '.round($totalDuration, 2)."s\n";
 echo "📊 Total Tasks: 65 (20+15+10+20)\n";
-echo "🚀 Overall Throughput: " . round(65 / max($totalDuration, 0.01), 2) . " tasks/s\n\n";
+echo '🚀 Overall Throughput: '.round(65 / max($totalDuration, 0.01), 2)." tasks/s\n\n";
 
 echo "🎯 Key Insights:\n";
 echo "   ⏱️  Execution time measures total task duration\n";
@@ -183,7 +187,7 @@ echo "   📖 See README.md 'Understanding Memory Metrics' for details.\n\n";
 if ($totalDuration < 5) {
     echo "✅ Benchmark completed in under 5 seconds!\n";
 } else {
-    echo "⏱️  Benchmark took: " . round($totalDuration, 2) . "s\n";
+    echo '⏱️  Benchmark took: '.round($totalDuration, 2)."s\n";
 }
 
 echo "\n🏁 === Benchmark Complete ===\n";

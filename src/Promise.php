@@ -11,6 +11,7 @@ use Throwable;
 
 /**
  * Promise wrapper for parallel task execution with chainable then/catch/finally
+ *
  * @template TReturn
  */
 final class Promise
@@ -25,20 +26,16 @@ final class Promise
      */
     private array $handlers = [];
 
-    /**
-     * @var ?BenchmarkData $benchmark
-     */
     private ?BenchmarkData $benchmark = null;
 
     /**
-     * @param Closure(): TReturn $callback
+     * @param  Closure(): TReturn  $callback
      */
     public function __construct(
         private readonly ParalliteClient $client,
-        private readonly Closure         $callback,
-        bool                             $eager = true
-    )
-    {
+        private readonly Closure $callback,
+        bool $eager = true
+    ) {
         // Start execution immediately for true parallelism
         if ($eager) {
             $this->start();
@@ -90,7 +87,6 @@ final class Promise
      * - After catch() handles error, continue with subsequent then() handlers
      * - finally() handlers always run at the end
      *
-     * @return mixed
      * @throws Throwable
      */
     public function resolve(): mixed
@@ -117,7 +113,7 @@ final class Promise
         // Process handlers in registration order
         foreach ($this->handlers as $handler) {
             if ($handler['type'] === 'then') {
-                if (!$isError) {
+                if (! $isError) {
                     try {
                         $result = $handler['callback']($result);
                     } catch (Throwable $e) {
@@ -146,7 +142,7 @@ final class Promise
 
         // Throw if still in error state
         if ($isError) {
-            if (!($exception instanceof Throwable)) {
+            if (! ($exception instanceof Throwable)) {
                 throw new RuntimeException('Promise rejected without exception instance.');
             }
 
@@ -160,7 +156,8 @@ final class Promise
      * Add a then callback to the promise chain
      *
      * @template TThenReturn
-     * @param Closure(TReturn): TThenReturn $then
+     *
+     * @param  Closure(TReturn): TThenReturn  $then
      * @return self<TThenReturn>
      */
     public function then(Closure $then): self
@@ -174,7 +171,8 @@ final class Promise
      * Add a catch callback to handle exceptions
      *
      * @template TCatchReturn
-     * @param Closure(Throwable): TCatchReturn $catch
+     *
+     * @param  Closure(Throwable): TCatchReturn  $catch
      * @return self<TReturn|TCatchReturn>
      */
     public function catch(Closure $catch): self
@@ -187,7 +185,7 @@ final class Promise
     /**
      * Add a final callback that runs regardless of success/failure
      *
-     * @param Closure(): void $finally
+     * @param  Closure(): void  $finally
      * @return self<TReturn>
      */
     public function finally(Closure $finally): self
@@ -201,8 +199,6 @@ final class Promise
      * Get benchmark data if available
      *
      * Returns null if benchmark mode was not enabled or if promise hasn't been resolved yet.
-     *
-     * @return BenchmarkData|null
      */
     public function getBenchmark(): ?BenchmarkData
     {

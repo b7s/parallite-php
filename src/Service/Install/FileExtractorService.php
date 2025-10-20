@@ -26,7 +26,7 @@ final class FileExtractorService
 
     private function extractTarGz(string $archivePath, string $destination, string $platform): void
     {
-        $tmpDir = sys_get_temp_dir() . '/parallite-extract-' . uniqid();
+        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
         mkdir($tmpDir, 0755, true);
 
         try {
@@ -40,7 +40,7 @@ final class FileExtractorService
             exec($command, $output, $returnCode);
 
             if ($returnCode !== 0) {
-                throw new RuntimeException('Failed to extract tar.gz: ' . implode("\n", $output));
+                throw new RuntimeException('Failed to extract tar.gz: '.implode("\n", $output));
             }
 
             $this->moveBinary($tmpDir, $destination, $platform);
@@ -51,12 +51,12 @@ final class FileExtractorService
 
     private function extractZip(string $archivePath, string $destination, string $platform): void
     {
-        if (!class_exists('ZipArchive')) {
+        if (! class_exists('ZipArchive')) {
             throw new RuntimeException('ZipArchive extension is required for Windows installation');
         }
 
-        $zip = new ZipArchive();
-        $tmpDir = sys_get_temp_dir() . '/parallite-extract-' . uniqid();
+        $zip = new ZipArchive;
+        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
         mkdir($tmpDir, 0755, true);
 
         try {
@@ -76,31 +76,31 @@ final class FileExtractorService
     private function moveBinary(string $sourceDir, string $destination, string $platform): void
     {
         $binaryName = "parallite-{$platform}";
-        $binaryPath = $sourceDir . '/' . $binaryName;
+        $binaryPath = $sourceDir.'/'.$binaryName;
 
         // On Windows, check for .exe version if needed
-        if (!file_exists($binaryPath) && ConfigService::isWindows()) {
+        if (! file_exists($binaryPath) && ConfigService::isWindows()) {
             $binaryPath .= '.exe';
-            if (!file_exists($binaryPath)) {
+            if (! file_exists($binaryPath)) {
                 throw new RuntimeException("Binary not found in archive: {$binaryName} or {$binaryName}.exe");
             }
-        } elseif (!file_exists($binaryPath)) {
+        } elseif (! file_exists($binaryPath)) {
             throw new RuntimeException("Binary not found in archive: {$binaryName}");
         }
 
         // Move to destination (without .exe)
-        if (!rename($binaryPath, $destination)) {
+        if (! rename($binaryPath, $destination)) {
             throw new RuntimeException("Failed to move binary to: {$destination}");
         }
     }
 
     private function cleanupDirectory(string $directory): void
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             return;
         }
 
-        $files = glob($directory . '/*');
+        $files = glob($directory.'/*');
         if ($files !== false) {
             array_map('unlink', $files);
         }

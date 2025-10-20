@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Basic Parallite Example - TRUE PARALLEL EXECUTION
- * 
+ *
  * This example demonstrates how to use the async() and await() helper functions
  * to execute PHP closures in parallel - no setup required!
  */
@@ -23,16 +23,19 @@ try {
 
     $promise1 = async(function () {
         sleep(1);
+
         return 'Task 1 completed (1s)';
     });
 
     $promise2 = async(function () {
         sleep(2);
+
         return 'Task 2 completed (2s)';
     });
 
     $promise3 = async(function () {
         sleep(3);
+
         return 'Task 3 completed (3s)';
     });
 
@@ -52,7 +55,7 @@ try {
 
     if ($duration < 4) {
         echo "   ✓ PARALLEL execution confirmed! (would be 6s if sequential)\n";
-        echo "   Speedup: " . round(6 / $duration, 2) . "x\n";
+        echo '   Speedup: '.round(6 / $duration, 2)."x\n";
     }
 
     echo "\n";
@@ -63,9 +66,9 @@ try {
     $start = microtime(true);
 
     $result = await(
-        async(fn() => 10)
-            ->then(fn($n) => $n * 2)
-            ->then(fn($n) => $n + 5)
+        async(fn () => 10)
+            ->then(fn ($n) => $n * 2)
+            ->then(fn ($n) => $n + 5)
     );
 
     echo "   Result: {$result} (10 * 2 + 5)\n\n";
@@ -80,6 +83,7 @@ try {
     foreach ($numbers as $n) {
         $promises[] = async(function () use ($n) {
             usleep(100000); // 100ms
+
             return $n * $n;
         });
     }
@@ -89,8 +93,8 @@ try {
         $squares[] = await($promise);
     }
 
-    echo "   Numbers: " . json_encode($numbers) . "\n";
-    echo "   Squares: " . json_encode($squares) . "\n\n";
+    echo '   Numbers: '.json_encode($numbers)."\n";
+    echo '   Squares: '.json_encode($squares)."\n\n";
 
     // Example 4: Error handling with catch()
     echo "4. Error handling with catch()\n";
@@ -99,7 +103,7 @@ try {
     $result = await(
         async(function () {
             throw new RuntimeException('Simulated error');
-        })->catch(fn($e) => 'Rescued: ' . $e->getMessage())
+        })->catch(fn ($e) => 'Rescued: '.$e->getMessage())
     );
 
     echo "   Result: {$result}\n\n";

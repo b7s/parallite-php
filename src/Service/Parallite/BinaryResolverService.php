@@ -16,7 +16,7 @@ final class BinaryResolverService
     private string $parallitePhpRoot;
 
     /**
-     * @param string|null $parallitePhpRoot Parallite PHP root directory
+     * @param  string|null  $parallitePhpRoot  Parallite PHP root directory
      */
     public function __construct(?string $parallitePhpRoot = null)
     {
@@ -59,7 +59,7 @@ final class BinaryResolverService
      */
     public function getBinariesDirectory(): string
     {
-        return $this->parallitePhpRoot . '/bin/parallite-bin';
+        return $this->parallitePhpRoot.'/bin/parallite-bin';
     }
 
     /**
@@ -82,11 +82,11 @@ final class BinaryResolverService
     {
         $binariesDir = $this->getBinariesDirectory();
 
-        if (!is_dir($binariesDir)) {
+        if (! is_dir($binariesDir)) {
             return null;
         }
 
-        $pattern = $binariesDir . '/parallite-*';
+        $pattern = $binariesDir.'/parallite-*';
 
         $files = glob($pattern);
 
@@ -110,7 +110,7 @@ final class BinaryResolverService
             return null;
         }
 
-        uksort($versions, static fn($a, $b) => version_compare($b, $a));
+        uksort($versions, static fn ($a, $b) => version_compare($b, $a));
 
         return reset($versions);
     }
@@ -122,7 +122,7 @@ final class BinaryResolverService
     {
         $cacheFile = $this->getCacheFilePath();
 
-        if (!file_exists($cacheFile)) {
+        if (! file_exists($cacheFile)) {
             return null;
         }
 
@@ -149,7 +149,7 @@ final class BinaryResolverService
         $cacheFile = $this->getCacheFilePath();
         $cacheDir = dirname($cacheFile);
 
-        if (!is_dir($cacheDir)) {
+        if (! is_dir($cacheDir)) {
             @mkdir($cacheDir, 0755, true);
         }
 
@@ -161,7 +161,7 @@ final class BinaryResolverService
      */
     private function getCacheFilePath(): string
     {
-        return sys_get_temp_dir() . '/' . self::CACHE_FILE;
+        return sys_get_temp_dir().'/'.self::CACHE_FILE;
     }
 
     /**
@@ -173,8 +173,8 @@ final class BinaryResolverService
 
         $packageRoot = dirname($dir, 3);
 
-        if (file_exists($packageRoot . '/composer.json')) {
-            $composerJson = file_get_contents($packageRoot . '/composer.json');
+        if (file_exists($packageRoot.'/composer.json')) {
+            $composerJson = file_get_contents($packageRoot.'/composer.json');
             if ($composerJson !== false) {
                 $composer = json_decode($composerJson, true);
                 if (is_array($composer) && isset($composer['name']) && is_string($composer['name'])) {
@@ -188,14 +188,14 @@ final class BinaryResolverService
 
         $projectRoot = ProjectRootFinderService::find($dir);
 
-        $vendorDir = $projectRoot . '/vendor';
+        $vendorDir = $projectRoot.'/vendor';
 
         if (is_dir($vendorDir)) {
-            $vendors = glob($vendorDir . '/*', GLOB_ONLYDIR);
+            $vendors = glob($vendorDir.'/*', GLOB_ONLYDIR);
 
             if ($vendors !== false) {
                 foreach ($vendors as $vendorPath) {
-                    $packagePath = $vendorPath . '/parallite-php';
+                    $packagePath = $vendorPath.'/parallite-php';
                     if (is_dir($packagePath)) {
                         return $packagePath;
                     }
@@ -206,5 +206,4 @@ final class BinaryResolverService
         // Fallback to package root
         return $packageRoot;
     }
-
 }

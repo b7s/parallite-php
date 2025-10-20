@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use function Parallite\async;
 use function Parallite\await;
@@ -24,7 +24,7 @@ echo "2. Error handling with catch():\n";
 $promise = async(function () {
     throw new Exception('Error');
 })->catch(function (Throwable $e) {
-    return 'Rescued: ' . $e->getMessage();
+    return 'Rescued: '.$e->getMessage();
 });
 
 $result = await($promise);
@@ -56,7 +56,7 @@ $promise = async(fn () => 'success')
 
 $result = await($promise);
 echo "Result: {$result}\n"; // string(7) "SUCCESS"
-echo "Finally called: " . ($finallyCalled ? 'yes' : 'no') . "\n\n";
+echo 'Finally called: '.($finallyCalled ? 'yes' : 'no')."\n\n";
 
 // Example 5: Parallel execution with promises
 echo "5. Parallel execution with promises:\n";
@@ -64,18 +64,21 @@ $start = microtime(true);
 
 $promise1 = async(function () {
     sleep(1);
+
     return 'Task 1';
-})->then(fn ($r) => $r . ' completed');
+})->then(fn ($r) => $r.' completed');
 
 $promise2 = async(function () {
     sleep(1);
+
     return 'Task 2';
-})->then(fn ($r) => $r . ' completed');
+})->then(fn ($r) => $r.' completed');
 
 $promise3 = async(function () {
     sleep(1);
+
     return 'Task 3';
-})->then(fn ($r) => $r . ' completed');
+})->then(fn ($r) => $r.' completed');
 
 $result1 = await($promise1);
 $result2 = await($promise2);
@@ -86,7 +89,7 @@ $duration = microtime(true) - $start;
 echo "Result 1: {$result1}\n";
 echo "Result 2: {$result2}\n";
 echo "Result 3: {$result3}\n";
-echo "Duration: " . round($duration, 2) . "s (should be ~1s, not 3s)\n\n";
+echo 'Duration: '.round($duration, 2)."s (should be ~1s, not 3s)\n\n";
 
 // Example 6: Complex data transformation
 echo "6. Complex data transformation:\n";

@@ -14,10 +14,10 @@ use Illuminate\Contracts\Console\Kernel;
 define('LARAVEL_START', microtime(true));
 
 // Register The Auto Loader
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 // Bootstrap The Application
-$app = require_once __DIR__ . '/app.php';
+$app = require_once __DIR__.'/app.php';
 
 // Bootstrap the console kernel (not HTTP kernel)
 $kernel = $app->make(Kernel::class);

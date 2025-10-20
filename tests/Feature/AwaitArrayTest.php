@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 test('awaits array of promises and returns array of results', function () {
     $promises = [
-        async(fn() => 'Task 1'),
-        async(fn() => 'Task 2'),
-        async(fn() => 'Task 3'),
+        async(fn () => 'Task 1'),
+        async(fn () => 'Task 2'),
+        async(fn () => 'Task 3'),
     ];
 
     $results = await($promises);
@@ -20,9 +20,9 @@ test('awaits array of promises and returns array of results', function () {
 
 test('awaits associative array of promises preserving keys', function () {
     $promises = [
-        'first' => async(fn() => 'Result 1'),
-        'second' => async(fn() => 'Result 2'),
-        'third' => async(fn() => 'Result 3'),
+        'first' => async(fn () => 'Result 1'),
+        'second' => async(fn () => 'Result 2'),
+        'third' => async(fn () => 'Result 3'),
     ];
 
     $results = await($promises);
@@ -40,9 +40,9 @@ test('awaits associative array of promises preserving keys', function () {
 test('awaits mixed array with promises and static values', function () {
     $mixed = [
         'static' => 'Static value',
-        'promise1' => async(fn() => 'Promise 1'),
+        'promise1' => async(fn () => 'Promise 1'),
         'number' => 42,
-        'promise2' => async(fn() => 'Promise 2'),
+        'promise2' => async(fn () => 'Promise 2'),
         'array' => ['nested' => 'data'],
     ];
 
@@ -82,11 +82,11 @@ test('awaits empty array', function () {
 
 test('awaits array of promises with different return types', function () {
     $promises = [
-        async(fn() => 42),
-        async(fn() => 'Hello'),
-        async(fn() => ['key' => 'value']),
-        async(fn() => true),
-        async(fn() => null),
+        async(fn () => 42),
+        async(fn () => 'Hello'),
+        async(fn () => ['key' => 'value']),
+        async(fn () => true),
+        async(fn () => null),
     ];
 
     $results = await($promises);
@@ -106,14 +106,17 @@ test('executes promises in parallel when using array', function () {
     $promises = [
         async(function () {
             usleep(100000); // 100ms
+
             return 'Task 1';
         }),
         async(function () {
             usleep(100000); // 100ms
+
             return 'Task 2';
         }),
         async(function () {
             usleep(100000); // 100ms
+
             return 'Task 3';
         }),
     ];
@@ -130,9 +133,9 @@ test('executes promises in parallel when using array', function () {
 
 test('handles promises with transformations in array', function () {
     $promises = [
-        async(fn() => 10)->then(fn($n) => $n * 2),
-        async(fn() => 'hello')->then(fn($s) => strtoupper($s)),
-        async(fn() => [1, 2, 3])->then(fn($arr) => array_sum($arr)),
+        async(fn () => 10)->then(fn ($n) => $n * 2),
+        async(fn () => 'hello')->then(fn ($s) => strtoupper($s)),
+        async(fn () => [1, 2, 3])->then(fn ($arr) => array_sum($arr)),
     ];
 
     $results = await($promises);
@@ -145,9 +148,9 @@ test('handles promises with transformations in array', function () {
 
 test('preserves array keys with numeric indices', function () {
     $promises = [
-        10 => async(fn() => 'Ten'),
-        20 => async(fn() => 'Twenty'),
-        30 => async(fn() => 'Thirty'),
+        10 => async(fn () => 'Ten'),
+        20 => async(fn () => 'Twenty'),
+        30 => async(fn () => 'Thirty'),
     ];
 
     $results = await($promises);
@@ -162,7 +165,7 @@ test('preserves array keys with numeric indices', function () {
 });
 
 test('works with single promise (backward compatibility)', function () {
-    $promise = async(fn() => 'Single result');
+    $promise = async(fn () => 'Single result');
     $result = await($promise);
 
     expect($result)->toBe('Single result');
