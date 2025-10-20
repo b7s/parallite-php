@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Parallite\Service;
+namespace Parallite\Service\Parallite;
 
 use Closure;
 use Parallite\Promise;
@@ -12,10 +12,10 @@ use Throwable;
 /**
  * Service responsible for managing parallel task execution
  */
-final class TaskService
+final readonly class TaskService
 {
     public function __construct(
-        private readonly SocketService $socketService
+        private SocketService $socketService
     )
     {
     }

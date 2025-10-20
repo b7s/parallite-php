@@ -9,10 +9,10 @@ declare(strict_types=1);
  */
 
 // Load ProjectRootFinderService first (before autoloader)
-require_once dirname(__DIR__) . '/Service/ProjectRootFinderService.php';
+require_once dirname(__DIR__) . '/Service/Parallite/ProjectRootFinderService.php';
 
 use MessagePack\MessagePack;
-use Parallite\Service\ProjectRootFinderService;
+use Parallite\Service\Parallite\ProjectRootFinderService;
 
 $projectRoot = ProjectRootFinderService::find(__DIR__);
 
@@ -96,7 +96,7 @@ function lightNormalize(mixed $data, int $depth = 0): mixed
         if (method_exists($data, 'toArray')) {
             // Eloquent models, Collections, etc.
             $data = $data->toArray();
-        } elseif ($data instanceof \DateTimeInterface) {
+        } elseif ($data instanceof DateTimeInterface) {
             // DateTime objects
             return [
                 '_type' => 'datetime',
@@ -105,7 +105,7 @@ function lightNormalize(mixed $data, int $depth = 0): mixed
             ];
         } else {
             // stdClass and other objects
-            $data = (array) $data;
+            $data = (array)$data;
         }
     }
 
@@ -282,7 +282,7 @@ while (true) {
     $benchmarkEnabled = $request['enable_benchmark'] ?? $defaultBenchmark;
 
     $benchmarkSource = isset($request['enable_benchmark']) ? 'request' : 'config';
-    workerLog("Benchmark enabled: " . ($benchmarkEnabled ? 'true' : 'false') . " (source: $benchmarkSource)");
+    workerLog('Benchmark enabled: ' . ($benchmarkEnabled ? 'true' : 'false') . " (source: $benchmarkSource)");
 
     // Initialize benchmark metrics
     $benchmark = null;
@@ -302,23 +302,23 @@ while (true) {
 
     try {
         // Deserialize closure
-        workerLog("Deserializing closure...");
+        workerLog('Deserializing closure...');
         $closure = \Opis\Closure\unserialize($serialized);
-        workerLog("Closure deserialized successfully");
+        workerLog('Closure deserialized successfully');
 
         if (!$closure instanceof Closure) {
             throw new RuntimeException('Deserialized payload is not a closure');
         }
 
         // Execute closure
-        workerLog("Executing closure...");
+        workerLog('Executing closure...');
         $result = $closure();
 
         // Capture memory immediately after execution (before GC)
         $memoryAfterExecution = memory_get_usage(false);
         $peakAfterExecution = memory_get_peak_usage(false);
 
-        workerLog("Closure executed successfully");
+        workerLog('Closure executed successfully');
 
         // Normalize result to handle complex objects (Eloquent, Collections, DateTime)
         // This preserves array keys but converts objects to arrays

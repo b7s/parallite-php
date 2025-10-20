@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Parallite\Service;
+namespace Parallite\Service\Parallite;
 
 use Closure;
 use MessagePack\MessagePack;
@@ -105,7 +105,7 @@ final readonly class SocketService
     /**
      * Await the result of a previously submitted task
      *
-     * @param array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>} $future
+     * @param array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}     $future
      * @param-out array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>} $future
      * @return mixed
      * @throws RuntimeException|Throwable

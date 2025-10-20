@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Parallite\Service;
+namespace Parallite\Service\Parallite;
 
 use RuntimeException;
 
@@ -171,7 +171,7 @@ final class BinaryResolverService
     {
         $dir = __DIR__;
 
-        $packageRoot = dirname($dir, 2);
+        $packageRoot = dirname($dir, 3);
 
         if (file_exists($packageRoot . '/composer.json')) {
             $composerJson = file_get_contents($packageRoot . '/composer.json');

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Parallite\Service;
+namespace Parallite\Service\Parallite;
 
 use RuntimeException;
 
@@ -61,15 +61,15 @@ final class ConfigService
     public function loadDaemonConfig(): array
     {
         $defaults = [
-            'timeout_ms' => 30000,
-            'fixed_workers' => 0,
+            'timeout_ms' => 900000,
+            'fixed_workers' => 1,
             'prefix_name' => 'parallite_worker',
             'fail_mode' => 'continue',
             'max_payload_bytes' => 10485760,
         ];
 
         $clientConfigPath = $this->projectRoot . '/parallite.json';
-        $packageRoot = dirname(__DIR__, 2);
+        $packageRoot = dirname(__DIR__, 3);
         $packageConfigPath = $packageRoot . '/parallite.json';
 
         $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
@@ -99,7 +99,7 @@ final class ConfigService
     public function getConfigPath(): string
     {
         $clientConfigPath = $this->projectRoot . '/parallite.json';
-        $packageRoot = dirname(__DIR__, 2);
+        $packageRoot = dirname(__DIR__, 3);
         $packageConfigPath = $packageRoot . '/parallite.json';
 
         return file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;

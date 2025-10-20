@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Parallite\Service;
+namespace Parallite\Service\Parallite;
 
 use RuntimeException;
 
@@ -231,8 +231,8 @@ final class DaemonService
     private function extractDaemonConfig(array $config): array
     {
         return [
-            'timeoutMs' => is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 30000,
-            'fixedWorkers' => is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 0,
+            'timeoutMs' => is_int($config['timeout_ms'] ?? null) ? $config['timeout_ms'] : 900000,
+            'fixedWorkers' => is_int($config['fixed_workers'] ?? null) ? $config['fixed_workers'] : 1,
             'prefixName' => is_string($config['prefix_name'] ?? null) ? $config['prefix_name'] : 'parallite_worker',
             'failMode' => is_string($config['fail_mode'] ?? null) ? $config['fail_mode'] : 'continue',
         ];

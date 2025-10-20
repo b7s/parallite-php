@@ -5,46 +5,46 @@ declare(strict_types=1);
 namespace Parallite;
 
 use Closure;
-use Parallite\Service\ConfigService;
-use Parallite\Service\DaemonService;
-use Parallite\Service\SocketService;
-use Parallite\Service\TaskService;
+use Parallite\Service\Parallite\ConfigService;
+use Parallite\Service\Parallite\DaemonService;
+use Parallite\Service\Parallite\SocketService;
+use Parallite\Service\Parallite\TaskService;
 use RuntimeException;
 use Socket;
 use Throwable;
 
 /**
  * Parallite Client - Standalone PHP Client for Parallite Daemon
- * 
+ *
  * This class provides a simple interface to communicate with Parallite daemon
  * and execute PHP closures in parallel.
- * 
+ *
  * Usage:
  * ```php
  * use Parallite\ParalliteClient;
- * 
+ *
  * // Option 1: Automatic daemon management (recommended)
  * $client = new ParalliteClient(autoManageDaemon: true);
- * 
+ *
  * // Option 2: Manual daemon management (you start daemon yourself)
  * $client = new ParalliteClient('/tmp/parallite-custom.sock', autoManageDaemon: false);
- * 
+ *
  * // Submit tasks
  * $future1 = $client->async(fn() => sleep(1) && 'Task 1');
  * $future2 = $client->async(fn() => sleep(2) && 'Task 2');
- * 
+ *
  * // Await results
  * $result1 = $client->await($future1);
  * $result2 = $client->await($future2);
- * 
+ *
  * // Daemon is automatically stopped on script end if autoManageDaemon=true
  * ```
- * 
+ *
  * Required dependencies:
  * - PHP 8.2+
  * - opis/closure
  * - ext-sockets
- * 
+ *
  * Configuration (parallite.json in project root):
  * - php_includes: Files loaded by worker processes
  * - go_overrides: Daemon configuration (timeout, workers, etc)
@@ -52,9 +52,9 @@ use Throwable;
 class ParalliteClient
 {
     private string $socketPath;
-    private bool $autoManageDaemon = true;
-    private bool $enableBenchmark = false;
-    
+    private bool $autoManageDaemon;
+    private bool $enableBenchmark;
+
     private ConfigService $configService;
     private DaemonService $daemonService;
     private SocketService $socketService;
@@ -62,17 +62,17 @@ class ParalliteClient
 
     /**
      * Create a new Parallite client
-     * 
-     * @param string $socketPath Path to socket (Unix: /tmp/file.sock, Windows: \\.\pipe\name)
-     * @param bool $autoManageDaemon If true, automatically starts/stops daemon
-     * @param string|null $projectRoot Project root directory (auto-detected if null)
-     * @param bool $enableBenchmark If true, includes benchmark data in responses
+     *
+     * @param string      $socketPath       Path to socket (Unix: /tmp/file.sock, Windows: \\.\pipe\name)
+     * @param bool        $autoManageDaemon If true, automatically starts/stops daemon
+     * @param string|null $projectRoot      Project root directory (auto-detected if null)
+     * @param bool        $enableBenchmark  If true, includes benchmark data in responses
      */
     public function __construct(
-        string $socketPath = '',
-        bool $autoManageDaemon = true,
+        string  $socketPath = '',
+        bool    $autoManageDaemon = true,
         ?string $projectRoot = null,
-        bool $enableBenchmark = false
+        bool    $enableBenchmark = false
     )
     {
         $this->socketPath = $socketPath !== '' ? $socketPath : ConfigService::getDefaultSocketPath();
@@ -92,7 +92,7 @@ class ParalliteClient
 
     /**
      * Create a Promise for chainable async execution
-     * 
+     *
      * @template TReturn
      * @param Closure(): TReturn $closure The closure to execute
      * @return Promise<TReturn> Promise that supports then/catch/finally chaining
@@ -104,10 +104,10 @@ class ParalliteClient
 
     /**
      * Submit a task for parallel execution
-     * 
+     *
      * This method sends the task to Parallite daemon and returns a future
      * that can be awaited later. The socket is kept open to allow parallel execution.
-     * 
+     *
      * @param Closure $closure The closure to execute
      * @return array{socket: Socket, task_id: string} Future containing socket and task_id
      * @throws RuntimeException If connection or send fails
@@ -119,13 +119,13 @@ class ParalliteClient
 
     /**
      * Await the result of a previously submitted task
-     * 
+     *
      * This method reads the response from the open socket and returns the result.
      * The socket is automatically closed after reading.
      * If the future parameter is passed by reference, benchmark data will be stored in it.
-     * 
+     *
      * @template TReturn
-     * @param array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null $future The future returned by async() or a Promise
+     * @param array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null     $future The future returned by async() or a Promise
      * @param-out array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null $future
      * @return mixed The result of the task execution
      * @throws RuntimeException|Throwable If reading fails or task failed
@@ -142,16 +142,16 @@ class ParalliteClient
 
         return $this->socketService->awaitTask($future);
     }
-    
+
     /**
      * Enable benchmark mode
-     * 
+     *
      * When enabled, task responses will include benchmark data with:
      * - execution_time_ms: Task execution time in milliseconds
      * - memory_delta_mb: Memory change during task execution (MB)
      * - memory_peak_mb: Peak memory usage during task (MB)
      * - cpu_time_ms: Total CPU time (user + system) in milliseconds
-     * 
+     *
      * @return self
      */
     public function enableBenchmark(): self
@@ -161,10 +161,10 @@ class ParalliteClient
         $this->taskService = new TaskService($this->socketService);
         return $this;
     }
-    
+
     /**
      * Disable benchmark mode
-     * 
+     *
      * @return self
      */
     public function disableBenchmark(): self
@@ -174,10 +174,10 @@ class ParalliteClient
         $this->taskService = new TaskService($this->socketService);
         return $this;
     }
-    
+
     /**
      * Check if benchmark mode is enabled
-     * 
+     *
      * @return bool
      */
     public function isBenchmarkEnabled(): bool
@@ -187,10 +187,10 @@ class ParalliteClient
 
     /**
      * Await multiple closures in parallel
-     * 
+     *
      * This is a convenience method that combines async() and await()
      * for multiple tasks, similar to Promise.all() in JavaScript.
-     * 
+     *
      * @param array<Closure> $closures Array of closures to execute
      * @return array<mixed> Array of results in the same order
      */
@@ -216,7 +216,7 @@ class ParalliteClient
 
     /**
      * Get default socket path for the current platform
-     * 
+     *
      * @return string Socket path (Unix socket or Windows named pipe)
      */
     public static function getDefaultSocketPath(): string
