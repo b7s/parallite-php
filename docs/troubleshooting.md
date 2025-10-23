@@ -46,8 +46,8 @@ Start the daemon manually (the binary is auto-resolved from the latest installed
 
 ```bash
 # The binary path is managed automatically
-# It's located at vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin
-./vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}.bin --socket=/tmp/parallite.sock
+# It's located at vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}
+./vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version} --socket=/tmp/parallite.sock
 ```
 
 Or use automatic daemon management:
@@ -84,7 +84,7 @@ Opis\Closure\ReflectionClosure::getCallableForm(): Return value must be of type 
 ### Cause
 
 Passing closures that capture `$this` forces `opis/closure` to serialize the entire object instance, including
-non-serializable dependencies (models, request objects, container instances).
+non-serializable dependencies (PDO, CurlHandle, resource, sockets, Laravel Models, Collections, etc).
 
 ### Impact
 
@@ -113,6 +113,17 @@ $promises = [
         ];
     }),
 ];
+
+// ❌ Bad - captures $this
+async(function() {
+    return $this->service->doSomething();
+});
+
+//or... ✅ Good - explicitly inject what you need
+$service = $this->service;
+async(function() use ($service) {
+    return $service->doSomething();
+});
 ```
 
 **Option 2: Use static methods**
@@ -120,7 +131,7 @@ $promises = [
 ```php
 // ✅ Good - static method
 $promises = [
-    'customers' => async(fn () => self::getCustomerStatistics()),
+    'customers' => async(fn () => self::doSomething()),
 ];
 ```
 

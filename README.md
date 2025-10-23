@@ -34,6 +34,12 @@ enabling real parallel execution of PHP code without the limitations of traditio
 - opis/closure
 - Composer 2+
 
+> ⚠️ Important Notice: 
+> 
+> Passing closures that capture `$this` will cause opis/closure to serialize the entire object instance. This often includes non‑serializable dependencies (e.g., PDO, CurlHandle, resource, sockets, Laravel Models, Collections, etc) and may lead to errors.
+> 
+> 👉 Please review the [Troubleshooting](docs/troubleshooting.md#serialization-failures) page for guidance on how to avoid this issue and know more.
+
 ## 📦 Installation
 
 ```bash
