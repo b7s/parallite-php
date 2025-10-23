@@ -144,13 +144,15 @@ Parallelism is beneficial when:
 
 Project with + 20 thousand orders, simulating several heavy calculations and with json transformation, as if it were for a heavy dashbaord (when I have time, I'll add this demo project to git):
 
-**With Parallite:**
+**✅ With Parallite:**
 
 ![with-parallite](docs/art/with-parallite.webp)
 
-**Without Parallite:**
+**🚫 Without Parallite:**
 
 ![with-parallite](docs/art/no-parallite.webp)
+
+> The increase was approximately 321.4% in orders processed per second.
 
 
 ### Real-World Example
