@@ -134,6 +134,19 @@ Parallelism is beneficial when:
 ❌ Operations are already very fast
 ```
 
+### Example using the Filamentphp demo
+
+Project with + 20 thousand orders, simulating several heavy calculations and with json transformation, as if it were for a heavy dashbaord (when I have time, I'll add this demo project to git):
+
+**With Parallite:**
+
+![with-parallite](docs/art/with-parallite.webp)
+
+**Without Parallite:**
+
+![with-parallite](docs/art/no-parallite.webp)
+
+
 ### Real-World Example
 
 ```php

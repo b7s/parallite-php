@@ -20,9 +20,9 @@ use Throwable;
  */
 final readonly class SocketService
 {
-    private const MAX_PORT_ATTEMPTS = 128;
+    private const int MAX_PORT_ATTEMPTS = 128;
 
-    private const PORT_RANGE_END = 65535;
+    private const int PORT_RANGE_END = 65535;
 
     public function __construct(
         private string $socketPath,
