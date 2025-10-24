@@ -122,6 +122,7 @@ final readonly class SocketService
             throw new RuntimeException('Failed to write to socket - '.socket_strerror(socket_last_error()));
         }
 
+        // Do the magic
         $taskId = $this->generateTaskId();
         $serialized = \Opis\Closure\serialize($closure);
 

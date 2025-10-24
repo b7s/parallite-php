@@ -28,11 +28,9 @@ enabling real parallel execution of PHP code without the limitations of traditio
 
 - PHP 8.3+
 - ext-sockets
-- ext-pcntl
 - ext-zip
 - rybakit/msgpack
 - opis/closure
-- Composer 2+
 
 > ⚠️ Important Notice: 
 > 
