@@ -47,10 +47,10 @@ final class ConfigService
     public static function getDefaultSocketPath(): string
     {
         if (self::isWindows()) {
-            return '\\\\.\\pipe\\parallite_'.getmypid();
+            return '\\\\.\\pipe\\parallite_' . getmypid();
         }
 
-        return sys_get_temp_dir().'/parallite_'.getmypid().'.sock';
+        return sys_get_temp_dir() . '/parallite_' . getmypid() . '.sock';
     }
 
     /**
@@ -117,5 +117,61 @@ final class ConfigService
         $resolver = new BinaryResolverService;
 
         return $resolver->getBinaryPath();
+    }
+
+    /**
+     * Resolve worker script absolute path from configuration
+     */
+    public function getWorkerScriptPath(): string
+    {
+        $defaultPath = $this->projectRoot . '/src/Support/parallite-worker.php';
+
+        $configPath = $this->getConfigPath();
+        if (! file_exists($configPath)) {
+            return $defaultPath;
+        }
+
+        $json = file_get_contents($configPath);
+        if ($json === false) {
+            return $defaultPath;
+        }
+
+        $config = json_decode($json, true);
+        if (! is_array($config)) {
+            return $defaultPath;
+        }
+
+        $scriptPath = $config['worker_script'] ?? null;
+        if (! is_string($scriptPath) || $scriptPath === '') {
+            return $defaultPath;
+        }
+
+        if (! self::isAbsolutePath($scriptPath)) {
+            $scriptPath = rtrim($this->projectRoot, '/\\') . '/' . ltrim($scriptPath, '/\\');
+        }
+
+        $resolvedPath = realpath($scriptPath);
+
+        return $resolvedPath !== false ? $resolvedPath : $scriptPath;
+    }
+
+    /**
+     * Determine if provided path is absolute
+     */
+    private static function isAbsolutePath(string $path): bool
+    {
+        if ($path === '') {
+            return false;
+        }
+
+        if ($path[0] === '/' || $path[0] === '\\') {
+            return true;
+        }
+
+        if (preg_match('/^[A-Za-z]:\\\\/', $path) === 1) {
+            return true;
+        }
+
+        return str_starts_with($path, 'phar://');
     }
 }

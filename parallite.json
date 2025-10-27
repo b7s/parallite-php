@@ -3,6 +3,7 @@
   "enable_benchmark": false,
   "worker_debug_logs": false,
   "debug_logs": false,
+  "worker_script": "src/Support/parallite-worker.php",
   "go_overrides": {
     "timeout_ms": 900000,
     "fixed_workers": 1,

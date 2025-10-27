@@ -98,8 +98,10 @@ final class DaemonService
             'failMode' => $failMode
         ] = $this->extractDaemonConfig($config);
 
+        $workerScript = $this->configService->getWorkerScriptPath();
+
         $cmd = sprintf(
-            '%s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s > %s 2>&1 & echo $!',
+            '%s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s --worker-script=%s > %s 2>&1 & echo $!',
             escapeshellarg($binaryPath),
             escapeshellarg($configPath),
             escapeshellarg($this->socketPath),
@@ -107,6 +109,7 @@ final class DaemonService
             $fixedWorkers,
             $prefixName,
             $failMode,
+            escapeshellarg($workerScript),
             escapeshellarg($logFile)
         );
 
@@ -142,8 +145,10 @@ final class DaemonService
             'failMode' => $failMode
         ] = $this->extractDaemonConfig($config);
 
+        $workerScript = $this->configService->getWorkerScriptPath();
+
         $cmd = sprintf(
-            'start /B "" %s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s > %s 2>&1',
+            'start /B "" %s --config=%s --socket=%s --timeout-ms=%d --fixed-workers=%d --prefix-name=%s --fail-mode=%s --worker-script=%s > %s 2>&1',
             escapeshellarg($binaryPath),
             escapeshellarg($configPath),
             escapeshellarg($this->socketPath),
@@ -151,6 +156,7 @@ final class DaemonService
             $fixedWorkers,
             $prefixName,
             $failMode,
+            escapeshellarg($workerScript),
             escapeshellarg($logFile)
         );
 
