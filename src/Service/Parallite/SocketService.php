@@ -50,6 +50,7 @@ final class SocketService
 
     private const int MAX_SERIALIZATION_CACHE_SIZE = 1000;
 
+    /** @var array<string, string> */
     private array $serializationCache = [];
 
     public function __construct(
@@ -134,6 +135,9 @@ final class SocketService
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function validateMessageData(array $data): void
     {
         if (! isset($data['type']) || ! is_string($data['type'])) {
@@ -158,6 +162,9 @@ final class SocketService
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function validateUnpackedData(array $data): void
     {
         if (! isset($data['ok'])) {
@@ -165,7 +172,8 @@ final class SocketService
         }
 
         if ($data['ok'] !== true) {
-            throw new RuntimeException('Task failed: '.($data['error'] ?? 'unknown error'));
+            $error = isset($data['error']) && is_string($data['error']) ? $data['error'] : 'unknown error';
+            throw new RuntimeException('Task failed (awaitTask): '.$error);
         }
 
         if (isset($data['benchmark']) && ! is_array($data['benchmark'])) {
@@ -180,7 +188,11 @@ final class SocketService
     {
         $reflection = new ReflectionFunction($closure);
         $code = $reflection->getFileName().':'.$reflection->getStartLine();
-        $hash = md5($code);
+
+        // Include static variables (captured via 'use') in the hash
+        // to ensure closures with different captured values aren't cached as the same
+        $staticVars = $reflection->getStaticVariables();
+        $hash = md5($code.serialize($staticVars));
 
         if (isset($this->serializationCache[$hash])) {
             return $this->serializationCache[$hash];
@@ -230,6 +242,7 @@ final class SocketService
         }
 
         try {
+            /** @var array<mixed> $unpacked */
             $unpacked = MessagePack::unpack($response);
         } catch (Throwable $e) {
             throw new RuntimeException('Invalid response from daemon: '.$e->getMessage());
@@ -239,6 +252,7 @@ final class SocketService
             throw new RuntimeException('Invalid response from daemon: not an array');
         }
 
+        /** @var array<string, mixed> $unpacked */
         $this->validateUnpackedData($unpacked);
 
         if (isset($unpacked['benchmark']) && is_array($unpacked['benchmark'])) {
@@ -408,8 +422,9 @@ final class SocketService
             }
 
             $socket = $future['socket'];
-            $sockets[(int) $socket] = $socket;
-            $futureMap[(int) $socket] = [
+            $socketId = spl_object_id($socket);
+            $sockets[$socketId] = $socket;
+            $futureMap[$socketId] = [
                 'index' => $index,
                 'future' => $future,
             ];
@@ -418,7 +433,7 @@ final class SocketService
         $results = [];
         $timeout = ['sec' => self::SOCKET_TIMEOUT_SEC, 'usec' => 0];
 
-        while (! empty($sockets)) {
+        while (count($sockets) > 0) {
             $read = array_values($sockets);
             $write = $except = null;
 
@@ -429,8 +444,8 @@ final class SocketService
             }
 
             if ($changed === 0) {
-                foreach ($sockets as $socket) {
-                    $index = $futureMap[(int) $socket]['index'];
+                foreach ($sockets as $socketId => $socket) {
+                    $index = $futureMap[$socketId]['index'];
                     $results[$index] = null;
                     socket_close($socket);
                 }
@@ -438,36 +453,38 @@ final class SocketService
             }
 
             foreach ($read as $socket) {
+                $socketId = spl_object_id($socket);
                 try {
                     $response = $this->readFrame($socket);
-                    socket_close($socket);
 
                     if (strlen($response) > self::MAX_PAYLOAD_SIZE) {
                         throw new RuntimeException('Response too large: '.strlen($response).' bytes');
                     }
 
+                    /** @var array<mixed> $unpacked */
                     $unpacked = MessagePack::unpack($response);
 
+                    // @phpstan-ignore-next-line - MessagePack can return non-array types
                     if (! is_array($unpacked)) {
                         throw new RuntimeException('Invalid response from daemon: not an array');
                     }
 
+                    /** @var array<string, mixed> $unpacked */
                     $this->validateUnpackedData($unpacked);
 
-                    $index = $futureMap[(int) $socket]['index'];
+                    $index = $futureMap[$socketId]['index'];
                     if (isset($unpacked['benchmark']) && is_array($unpacked['benchmark'])) {
                         $futures[$index]['benchmark'] = $unpacked['benchmark'];
                         $futures[$index]['socket'] = null;
                     }
                     $results[$index] = $unpacked['result'] ?? null;
-
-                    unset($sockets[(int) $socket]);
                 } catch (Throwable $e) {
-                    $index = $futureMap[(int) $socket]['index'];
-                    socket_close($socket);
+                    $index = $futureMap[$socketId]['index'];
                     $futures[$index]['socket'] = null;
                     $results[$index] = $e;
-                    unset($sockets[(int) $socket]);
+                } finally {
+                    socket_close($socket);
+                    unset($sockets[$socketId]);
                 }
             }
         }

@@ -31,6 +31,7 @@ final class ConfigService
 {
     private string $projectRoot;
 
+    /** @var array<string, mixed>|null */
     private ?array $cachedDaemonConfig = null;
 
     private ?string $cachedConfigPath = null;

@@ -92,7 +92,6 @@ final class VersionService
         $version = ltrim($version, 'v');
         $parts = explode('.', $version);
 
-        /** @phpstan-ignore-next-line */
         if (count($parts) < 1 || ! is_numeric($parts[0])) {
             throw new RuntimeException("Invalid version format: {$version}");
         }

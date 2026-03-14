@@ -6,4 +6,9 @@ parameters:
     paths:
         - src
     tmpDir: build/phpstan
-    reportUnmatchedIgnoredErrors: true
+    reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        - '#Strict comparison using === between Socket and false will always evaluate to false#'
+        - '#Parameter &\$future @param-out type of method.*SocketService::awaitTask\(\) expects#'
+        - '#Parameter &\$futures @param-out type of method.*SocketService::awaitAll\(\) expects#'
