@@ -8,6 +8,24 @@ use Parallite\Service\Parallite\ConfigService;
 use RuntimeException;
 use ZipArchive;
 
+use function bin2hex;
+use function chmod;
+use function class_exists;
+use function fclose;
+use function file_exists;
+use function glob;
+use function is_dir;
+use function is_resource;
+use function mkdir;
+use function random_bytes;
+use function rename;
+use function sprintf;
+use function str_contains;
+use function str_ends_with;
+use function str_starts_with;
+use function stream_get_contents;
+use function trim;
+
 final class FileExtractorService
 {
     public function extractArchive(string $archivePath, string $destination, string $platform, string $extension): void
@@ -27,8 +45,8 @@ final class FileExtractorService
     private function extractTarGz(string $archivePath, string $destination, string $platform): void
     {
         $tmpDir = sys_get_temp_dir().'/parallite-extract-'.bin2hex(random_bytes(8));
-        if (!mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
-            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
+        if (! mkdir($tmpDir, 0700, true) && ! is_dir($tmpDir)) {
+            throw new RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
         }
 
         try {
@@ -74,8 +92,8 @@ final class FileExtractorService
 
         $zip = new ZipArchive;
         $tmpDir = sys_get_temp_dir().'/parallite-extract-'.bin2hex(random_bytes(8));
-        if (!mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
-            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
+        if (! mkdir($tmpDir, 0700, true) && ! is_dir($tmpDir)) {
+            throw new RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
         }
 
         try {

@@ -4,7 +4,32 @@ declare(strict_types=1);
 
 namespace Parallite\Service\Parallite;
 
+use const GLOB_ONLYDIR;
+
 use RuntimeException;
+
+use function basename;
+use function count;
+use function dirname;
+use function file_exists;
+use function file_get_contents;
+use function file_put_contents;
+use function glob;
+use function is_array;
+use function is_dir;
+use function is_executable;
+use function is_file;
+use function is_string;
+use function json_decode;
+use function mkdir;
+use function preg_match;
+use function reset;
+use function str_contains;
+use function sys_get_temp_dir;
+use function trim;
+use function uksort;
+use function unlink;
+use function version_compare;
 
 /**
  * Service responsible for resolving and caching the Parallite binary path

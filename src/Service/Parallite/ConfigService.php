@@ -6,6 +6,24 @@ namespace Parallite\Service\Parallite;
 
 use RuntimeException;
 
+use function dirname;
+use function file_exists;
+use function file_get_contents;
+use function fileperms;
+use function getcwd;
+use function getmypid;
+use function is_dir;
+use function is_int;
+use function is_string;
+use function is_writable;
+use function json_decode;
+use function mb_strtolower;
+use function preg_match;
+use function realpath;
+use function str_starts_with;
+use function strpos;
+use function time;
+
 /**
  * Service responsible for configuration management and environment detection
  */
@@ -67,7 +85,7 @@ final class ConfigService
         if ($perms !== false) {
             $mode = $perms & 0777;
             if (($mode & 0002) !== 0 && ($mode & 01000) === 0) {
-                error_log('Warning: Temporary directory is world-writable without sticky bit');
+                syslog(LOG_INFO, 'Warning: Temporary directory is world-writable without sticky bit');
             }
         }
 
@@ -136,21 +154,21 @@ final class ConfigService
 
                 if (isset($overrides['timeout_ms'])) {
                     if (! is_int($overrides['timeout_ms']) || $overrides['timeout_ms'] < 1000 || $overrides['timeout_ms'] > 3600000) {
-                        error_log('Invalid timeout_ms in config, using default');
+                        syslog(LOG_INFO, 'Invalid timeout_ms in config, using default');
                         unset($overrides['timeout_ms']);
                     }
                 }
 
                 if (isset($overrides['fixed_workers'])) {
                     if (! is_int($overrides['fixed_workers']) || $overrides['fixed_workers'] < 0 || $overrides['fixed_workers'] > 100) {
-                        error_log('Invalid fixed_workers in config, using default');
+                        syslog(LOG_INFO, 'Invalid fixed_workers in config, using default');
                         unset($overrides['fixed_workers']);
                     }
                 }
 
                 if (isset($overrides['prefix_name'])) {
                     if (! is_string($overrides['prefix_name']) || preg_match('/^[a-zA-Z0-9_-]+$/', $overrides['prefix_name']) !== 1) {
-                        error_log('Invalid prefix_name in config, using default');
+                        syslog(LOG_INFO, 'Invalid prefix_name in config, using default');
                         unset($overrides['prefix_name']);
                     }
                 }
@@ -158,14 +176,14 @@ final class ConfigService
                 if (isset($overrides['fail_mode'])) {
                     $validModes = ['continue', 'stop', 'restart'];
                     if (! in_array($overrides['fail_mode'], $validModes, true)) {
-                        error_log('Invalid fail_mode in config, using default');
+                        syslog(LOG_INFO, 'Invalid fail_mode in config, using default');
                         unset($overrides['fail_mode']);
                     }
                 }
 
                 if (isset($overrides['max_payload_bytes'])) {
                     if (! is_int($overrides['max_payload_bytes']) || $overrides['max_payload_bytes'] < 1024 || $overrides['max_payload_bytes'] > 104857600) {
-                        error_log('Invalid max_payload_bytes in config, using default');
+                        syslog(LOG_INFO, 'Invalid max_payload_bytes in config, using default');
                         unset($overrides['max_payload_bytes']);
                     }
                 }
@@ -241,7 +259,7 @@ final class ConfigService
         $resolvedPath = realpath($scriptPath);
 
         if ($resolvedPath === false) {
-            error_log("Worker script not found: {$scriptPath}, using default");
+            syslog(LOG_INFO, "Worker script not found: {$scriptPath}, using default");
 
             return $defaultPath;
         }
@@ -257,13 +275,13 @@ final class ConfigService
         }
 
         if (! $isAllowed) {
-            error_log("Worker script outside allowed directories: {$resolvedPath}, using default");
+            syslog(LOG_INFO, "Worker script outside allowed directories: {$resolvedPath}, using default");
 
             return $defaultPath;
         }
 
         if (! str_ends_with($resolvedPath, '.php')) {
-            error_log("Worker script is not a PHP file: {$resolvedPath}, using default");
+            syslog(LOG_INFO, "Worker script is not a PHP file: {$resolvedPath}, using default");
 
             return $defaultPath;
         }

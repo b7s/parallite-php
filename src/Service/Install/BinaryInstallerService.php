@@ -7,6 +7,24 @@ namespace Parallite\Service\Install;
 use Parallite\Service\Parallite\BinaryResolverService;
 use RuntimeException;
 
+use function chmod;
+use function fclose;
+use function file_exists;
+use function file_get_contents;
+use function file_put_contents;
+use function fopen;
+use function ftruncate;
+use function is_dir;
+use function ltrim;
+use function mkdir;
+use function php_uname;
+use function rename;
+use function stream_context_create;
+use function sys_get_temp_dir;
+use function tempnam;
+use function unlink;
+use function version_compare;
+
 final class BinaryInstallerService
 {
     private BinaryResolverService $binaryResolver;

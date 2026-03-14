@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Parallite\Service\Parallite;
 
+use const AF_INET;
+use const SO_RCVTIMEO;
+use const SOCK_STREAM;
+use const SOL_SOCKET;
+use const SOL_TCP;
+
 use Closure;
 use MessagePack\MessagePack;
 use Random\RandomException;
@@ -12,6 +18,21 @@ use ReflectionFunction;
 use RuntimeException;
 use Socket;
 use Throwable;
+
+use function array_shift;
+use function count;
+use function is_array;
+use function is_resource;
+use function is_string;
+use function ksort;
+use function md5;
+use function pack;
+use function preg_match;
+use function random_int;
+use function sprintf;
+use function strlen;
+use function unpack;
+use function usleep;
 
 /**
  * Service responsible for socket communication with Parallite daemon
@@ -23,10 +44,6 @@ use Throwable;
  */
 final class SocketService
 {
-    private const int MAX_PORT_ATTEMPTS = 128;
-
-    private const int PORT_RANGE_END = 65535;
-
     private const int MAX_PAYLOAD_SIZE = 10 * 1024 * 1024;
 
     private const int SOCKET_TIMEOUT_SEC = 30;
@@ -37,7 +54,7 @@ final class SocketService
 
     public function __construct(
         private readonly string $socketPath,
-        private readonly bool   $enableBenchmark = false
+        private readonly bool $enableBenchmark = false
     ) {
         ConfigService::validateSocketPath($socketPath);
     }

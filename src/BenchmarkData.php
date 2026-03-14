@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Parallite;
 
+use function is_numeric;
+use function sprintf;
+
 /**
  * Benchmark data returned by Parallite daemon
  *

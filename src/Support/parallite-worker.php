@@ -19,7 +19,7 @@ $projectRoot = ProjectRootFinderService::find(__DIR__);
 // Load autoloader
 $autoloadPath = $projectRoot.'/vendor/autoload.php';
 if (! file_exists($autoloadPath)) {
-    error_log('[Worker] Autoloader not found at: '.$autoloadPath);
+    syslog(LOG_INFO, '[Worker] Autoloader not found at: '.$autoloadPath);
     exit(1);
 }
 
@@ -38,7 +38,7 @@ $debugLogs = false;
 if (file_exists($configPath)) {
     $configContent = file_get_contents($configPath);
     if ($configContent === false) {
-        error_log('[Worker] Failed to read config file');
+        syslog(LOG_INFO, '[Worker] Failed to read config file');
     } else {
         $config = json_decode($configContent, true);
 
@@ -80,7 +80,7 @@ function workerLog(string $message): void
     global $workerName, $debugLogs;
 
     if ($debugLogs) {
-        error_log("[$workerName] $message");
+        syslog(LOG_INFO, "[$workerName] $message");
     }
 }
 
@@ -145,9 +145,9 @@ function sendErrorResponse(string $taskId, string $error): void
         fwrite(STDOUT, $responseLength.$responsePacked);
         fflush(STDOUT);
 
-        error_log("[$workerName] Sent error response for task $taskId: $error");
+        syslog(LOG_INFO, "[$workerName] Sent error response for task $taskId: $error");
     } catch (Throwable $e) {
-        error_log("[$workerName] Failed to send error response: {$e->getMessage()}");
+        syslog(LOG_INFO, "[$workerName] Failed to send error response: {$e->getMessage()}");
     }
 }
 
@@ -159,7 +159,7 @@ register_shutdown_function(function () {
 
     if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         $errorMsg = "Fatal error: {$error['message']} in {$error['file']} on line {$error['line']}";
-        error_log("[$workerName] $errorMsg");
+        syslog(LOG_INFO, "[$workerName] $errorMsg");
 
         if ($currentTaskId !== null) {
             sendErrorResponse($currentTaskId, $errorMsg);
@@ -176,7 +176,7 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
         return false;
     }
 
-    error_log("[$workerName] PHP Error [$errno]: $errstr in $errfile on line $errline");
+    syslog(LOG_INFO, "[$workerName] PHP Error [$errno]: $errstr in $errfile on line $errline");
 
     return false; // Let PHP handle it normally
 });

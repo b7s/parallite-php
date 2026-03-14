@@ -6,6 +6,18 @@ namespace Parallite\Service\Install;
 
 use RuntimeException;
 
+use function array_column;
+use function error_get_last;
+use function file_get_contents;
+use function implode;
+use function is_array;
+use function is_string;
+use function json_decode;
+use function ltrim;
+use function str_contains;
+use function str_ends_with;
+use function stream_context_create;
+
 final class GitHubReleaseService
 {
     private const string GITHUB_REPO = 'b7s/parallite';

@@ -7,6 +7,20 @@ namespace Parallite\Service\Install;
 use Parallite\Service\Parallite\BinaryResolverService;
 use RuntimeException;
 
+use function basename;
+use function count;
+use function escapeshellarg;
+use function explode;
+use function file_exists;
+use function glob;
+use function is_dir;
+use function is_numeric;
+use function ltrim;
+use function preg_match;
+use function shell_exec;
+use function time;
+use function unlink;
+
 final class VersionService
 {
     private BinaryResolverService $binaryResolver;

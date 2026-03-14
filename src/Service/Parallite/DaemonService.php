@@ -4,7 +4,37 @@ declare(strict_types=1);
 
 namespace Parallite\Service\Parallite;
 
+use const AF_INET;
+use const AF_UNIX;
+use const LOG_INFO;
+use const SOCK_STREAM;
+
 use RuntimeException;
+
+use function basename;
+use function chmod;
+use function escapeshellarg;
+use function file_exists;
+use function file_get_contents;
+use function function_exists;
+use function is_int;
+use function is_resource;
+use function is_string;
+use function pclose;
+use function popen;
+use function preg_match;
+use function proc_get_status;
+use function proc_open;
+use function proc_terminate;
+use function rename;
+use function sprintf;
+use function substr;
+use function sys_get_temp_dir;
+use function syslog;
+use function tempnam;
+use function time;
+use function unlink;
+use function usleep;
 
 /**
  * Service responsible for managing the Parallite daemon lifecycle
@@ -64,7 +94,7 @@ final class DaemonService
         $config = $this->configService->loadDaemonConfig();
 
         $version = $this->getBinaryVersion($binaryPath);
-        error_log("Starting Parallite daemon (version: {$version})");
+        syslog(LOG_INFO, "Starting Parallite daemon (version: {$version})");
 
         if (file_exists($this->socketPath)) {
             @unlink($this->socketPath);
