@@ -25,7 +25,8 @@
     "ext-sockets": "*",
     "ext-zip": "*",
     "opis/closure": "^4.3",
-    "rybakit/msgpack": "^0.9.1"
+    "rybakit/msgpack": "^0.9.1",
+    "ext-pcntl": "*"
   },
   "require-dev": {
     "laravel/pint": "^1.25",

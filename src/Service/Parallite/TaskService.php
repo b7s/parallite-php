@@ -33,12 +33,7 @@ final readonly class TaskService
             $futures[] = $this->socketService->submitTask($closure);
         }
 
-        $results = [];
-        foreach ($futures as $future) {
-            $results[] = $this->socketService->awaitTask($future);
-        }
-
-        return $results;
+        return $this->socketService->awaitAll($futures);
     }
 
     /**

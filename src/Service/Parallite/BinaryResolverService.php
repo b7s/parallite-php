@@ -38,6 +38,8 @@ final class BinaryResolverService
         $cached = $this->getCachedBinaryPath();
 
         if ($cached !== null && file_exists($cached)) {
+            $this->ensureBinaryIsExecutable($cached);
+
             return $cached;
         }
 
@@ -112,7 +114,37 @@ final class BinaryResolverService
 
         uksort($versions, static fn ($a, $b) => version_compare($b, $a));
 
-        return reset($versions);
+        $latest = reset($versions);
+        if (! is_string($latest)) {
+            return null;
+        }
+
+        $this->ensureBinaryIsExecutable($latest);
+
+        return $latest;
+    }
+
+    /**
+     * Ensure Unix binary has executable permission.
+     */
+    private function ensureBinaryIsExecutable(string $binaryPath): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return;
+        }
+
+        if (is_executable($binaryPath)) {
+            return;
+        }
+
+        if (@chmod($binaryPath, 0755)) {
+            return;
+        }
+
+        throw new RuntimeException(
+            "Parallite binary exists but is not executable: {$binaryPath}. ".
+            'Please verify file permissions and ownership.'
+        );
     }
 
     /**

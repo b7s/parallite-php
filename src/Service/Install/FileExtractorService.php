@@ -26,21 +26,38 @@ final class FileExtractorService
 
     private function extractTarGz(string $archivePath, string $destination, string $platform): void
     {
-        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
-        mkdir($tmpDir, 0755, true);
+        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.bin2hex(random_bytes(8));
+        if (!mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
+        }
 
         try {
-            // Extract using tar command
-            $command = sprintf(
-                'tar -xzf %s -C %s 2>&1',
-                escapeshellarg($archivePath),
-                escapeshellarg($tmpDir)
-            );
+            $command = [
+                'tar',
+                '-xzf',
+                $archivePath,
+                '-C',
+                $tmpDir,
+            ];
 
-            exec($command, $output, $returnCode);
+            $process = proc_open($command, [
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ], $pipes);
+
+            if (! is_resource($process)) {
+                throw new RuntimeException('Failed to start tar extraction process');
+            }
+
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+
+            $returnCode = proc_close($process);
 
             if ($returnCode !== 0) {
-                throw new RuntimeException('Failed to extract tar.gz: '.implode("\n", $output));
+                throw new RuntimeException('Failed to extract tar.gz: '.trim((string) $stdout));
             }
 
             $this->moveBinary($tmpDir, $destination, $platform);
@@ -56,12 +73,41 @@ final class FileExtractorService
         }
 
         $zip = new ZipArchive;
-        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.uniqid();
-        mkdir($tmpDir, 0755, true);
+        $tmpDir = sys_get_temp_dir().'/parallite-extract-'.bin2hex(random_bytes(8));
+        if (!mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
+        }
 
         try {
             if ($zip->open($archivePath) !== true) {
                 throw new RuntimeException('Failed to open zip archive');
+            }
+
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $filename = $zip->getNameIndex($i);
+                if ($filename === false) {
+                    continue;
+                }
+
+                if (str_contains($filename, '../') || str_contains($filename, '..\\')) {
+                    $zip->close();
+                    throw new RuntimeException('Path traversal detected in ZIP file');
+                }
+
+                $startsWithSlash = str_starts_with($filename, '/') || str_starts_with($filename, '\\');
+                if ($startsWithSlash) {
+                    $zip->close();
+                    throw new RuntimeException('Absolute path detected in ZIP file');
+                }
+
+                $isDirectory = str_ends_with($filename, '/');
+                if (! $isDirectory) {
+                    $stat = $zip->statIndex($i);
+                    if ($stat !== false && ($stat['crc'] === 0 || $stat['size'] === 0)) {
+                        $zip->close();
+                        throw new RuntimeException('Suspicious file detected in ZIP');
+                    }
+                }
             }
 
             $zip->extractTo($tmpDir);

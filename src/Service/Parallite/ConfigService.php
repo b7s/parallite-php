@@ -13,6 +13,14 @@ final class ConfigService
 {
     private string $projectRoot;
 
+    private ?array $cachedDaemonConfig = null;
+
+    private ?string $cachedConfigPath = null;
+
+    private int $configCacheTime = 0;
+
+    private const CONFIG_CACHE_TTL = 60;
+
     public function __construct(?string $projectRoot = null)
     {
         if ($projectRoot !== null) {
@@ -47,10 +55,42 @@ final class ConfigService
     public static function getDefaultSocketPath(): string
     {
         if (self::isWindows()) {
-            return '\\\\.\\pipe\\parallite_' . getmypid();
+            return '\\\\.\\pipe\\parallite_'.getmypid();
         }
 
-        return sys_get_temp_dir() . '/parallite_' . getmypid() . '.sock';
+        $tempDir = sys_get_temp_dir();
+        if (! is_dir($tempDir) || ! is_writable($tempDir)) {
+            throw new RuntimeException('Temporary directory is not accessible');
+        }
+
+        $perms = fileperms($tempDir);
+        if ($perms !== false) {
+            $mode = $perms & 0777;
+            if (($mode & 0002) !== 0 && ($mode & 01000) === 0) {
+                error_log('Warning: Temporary directory is world-writable without sticky bit');
+            }
+        }
+
+        return $tempDir.'/parallite_'.getmypid().'.sock';
+    }
+
+    public static function validateSocketPath(string $socketPath): void
+    {
+        if (self::isWindows()) {
+            if (preg_match('/^\\\\\.\\\\pipe\\\\[a-zA-Z0-9_-]+$/', $socketPath) !== 1) {
+                throw new RuntimeException('Invalid named pipe path format');
+            }
+        } else {
+            $realPath = realpath(dirname($socketPath));
+            if ($realPath === false) {
+                throw new RuntimeException('Socket directory does not exist');
+            }
+
+            $tempDir = sys_get_temp_dir();
+            if (strpos($realPath, $tempDir) !== 0) {
+                throw new RuntimeException('Socket must be in temporary directory');
+            }
+        }
     }
 
     /**
@@ -60,6 +100,18 @@ final class ConfigService
      */
     public function loadDaemonConfig(): array
     {
+        $clientConfigPath = $this->projectRoot.'/parallite.json';
+        $packageRoot = dirname(__DIR__, 3);
+        $packageConfigPath = $packageRoot.'/parallite.json';
+
+        $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
+
+        if ($this->cachedConfigPath === $configPath &&
+            $this->cachedDaemonConfig !== null &&
+            (time() - $this->configCacheTime) < self::CONFIG_CACHE_TTL) {
+            return $this->cachedDaemonConfig;
+        }
+
         $defaults = [
             'timeout_ms' => 900000,
             'fixed_workers' => 1,
@@ -67,12 +119,6 @@ final class ConfigService
             'fail_mode' => 'continue',
             'max_payload_bytes' => 10485760,
         ];
-
-        $clientConfigPath = $this->projectRoot.'/parallite.json';
-        $packageRoot = dirname(__DIR__, 3);
-        $packageConfigPath = $packageRoot.'/parallite.json';
-
-        $configPath = file_exists($clientConfigPath) ? $clientConfigPath : $packageConfigPath;
 
         if (file_exists($configPath)) {
             $json = file_get_contents($configPath);
@@ -86,9 +132,51 @@ final class ConfigService
             }
 
             if (isset($config['go_overrides']) && is_array($config['go_overrides'])) {
-                $defaults = array_merge($defaults, $config['go_overrides']);
+                $overrides = $config['go_overrides'];
+
+                if (isset($overrides['timeout_ms'])) {
+                    if (! is_int($overrides['timeout_ms']) || $overrides['timeout_ms'] < 1000 || $overrides['timeout_ms'] > 3600000) {
+                        error_log('Invalid timeout_ms in config, using default');
+                        unset($overrides['timeout_ms']);
+                    }
+                }
+
+                if (isset($overrides['fixed_workers'])) {
+                    if (! is_int($overrides['fixed_workers']) || $overrides['fixed_workers'] < 0 || $overrides['fixed_workers'] > 100) {
+                        error_log('Invalid fixed_workers in config, using default');
+                        unset($overrides['fixed_workers']);
+                    }
+                }
+
+                if (isset($overrides['prefix_name'])) {
+                    if (! is_string($overrides['prefix_name']) || preg_match('/^[a-zA-Z0-9_-]+$/', $overrides['prefix_name']) !== 1) {
+                        error_log('Invalid prefix_name in config, using default');
+                        unset($overrides['prefix_name']);
+                    }
+                }
+
+                if (isset($overrides['fail_mode'])) {
+                    $validModes = ['continue', 'stop', 'restart'];
+                    if (! in_array($overrides['fail_mode'], $validModes, true)) {
+                        error_log('Invalid fail_mode in config, using default');
+                        unset($overrides['fail_mode']);
+                    }
+                }
+
+                if (isset($overrides['max_payload_bytes'])) {
+                    if (! is_int($overrides['max_payload_bytes']) || $overrides['max_payload_bytes'] < 1024 || $overrides['max_payload_bytes'] > 104857600) {
+                        error_log('Invalid max_payload_bytes in config, using default');
+                        unset($overrides['max_payload_bytes']);
+                    }
+                }
+
+                $defaults = array_merge($defaults, $overrides);
             }
         }
+
+        $this->cachedDaemonConfig = $defaults;
+        $this->cachedConfigPath = $configPath;
+        $this->configCacheTime = time();
 
         return $defaults;
     }
@@ -124,7 +212,7 @@ final class ConfigService
      */
     public function getWorkerScriptPath(): string
     {
-        $defaultPath = $this->projectRoot . '/src/Support/parallite-worker.php';
+        $defaultPath = $this->projectRoot.'/src/Support/parallite-worker.php';
 
         $configPath = $this->getConfigPath();
         if (! file_exists($configPath)) {
@@ -147,12 +235,40 @@ final class ConfigService
         }
 
         if (! self::isAbsolutePath($scriptPath)) {
-            $scriptPath = rtrim($this->projectRoot, '/\\') . '/' . ltrim($scriptPath, '/\\');
+            $scriptPath = rtrim($this->projectRoot, '/\\').'/'.ltrim($scriptPath, '/\\');
         }
 
         $resolvedPath = realpath($scriptPath);
 
-        return $resolvedPath !== false ? $resolvedPath : $scriptPath;
+        if ($resolvedPath === false) {
+            error_log("Worker script not found: {$scriptPath}, using default");
+
+            return $defaultPath;
+        }
+
+        $packageRoot = dirname(__DIR__, 2);
+        $allowedDirs = [$this->projectRoot, $packageRoot];
+        $isAllowed = false;
+        foreach ($allowedDirs as $allowedDir) {
+            if (strpos($resolvedPath, $allowedDir) === 0) {
+                $isAllowed = true;
+                break;
+            }
+        }
+
+        if (! $isAllowed) {
+            error_log("Worker script outside allowed directories: {$resolvedPath}, using default");
+
+            return $defaultPath;
+        }
+
+        if (! str_ends_with($resolvedPath, '.php')) {
+            error_log("Worker script is not a PHP file: {$resolvedPath}, using default");
+
+            return $defaultPath;
+        }
+
+        return $resolvedPath;
     }
 
     /**

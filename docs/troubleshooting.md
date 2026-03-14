@@ -68,7 +68,7 @@ The installer automatically sets the correct permissions. If you still have issu
 
 ```bash
 # Find and make executable (Unix/Linux/macOS)
-chmod +x vendor/parallite/parallite-php/bin/parallite-bin/parallite-*.bin
+chmod +x vendor/parallite/parallite-php/bin/parallite-bin/parallite-*
 ```
 
 ## Serialization Failures

@@ -219,33 +219,46 @@ final class BinaryInstallerService
 
     private function downloadAndExtract(string $url, string $destination, string $platform, string $extension, string $version): void
     {
-        $tmpDir = sys_get_temp_dir();
-        $archivePath = $tmpDir.'/parallite-'.uniqid().'.'.$extension;
-
-        // Download archive
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'header' => 'User-Agent: Parallite-PHP-Installer',
-                'follow_location' => 1,
-            ],
-        ]);
-
-        $archive = @file_get_contents($url, false, $context);
-
-        if ($archive === false) {
-            throw new RuntimeException("Failed to download archive from: {$url}");
+        $archivePath = tempnam(sys_get_temp_dir(), 'parallite-');
+        if ($archivePath === false) {
+            throw new RuntimeException('Failed to create temporary file');
         }
 
-        if (file_put_contents($archivePath, $archive) === false) {
-            throw new RuntimeException("Failed to write archive to: {$archivePath}");
-        }
+        $archivePathWithExt = $archivePath.'.'.$extension;
+        rename($archivePath, $archivePathWithExt);
+        $archivePath = $archivePathWithExt;
 
-        // Extract archive
+        chmod($archivePath, 0600);
+
         try {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => 'User-Agent: Parallite-PHP-Installer',
+                    'follow_location' => 1,
+                ],
+            ]);
+
+            $archive = @file_get_contents($url, false, $context);
+
+            if ($archive === false) {
+                throw new RuntimeException("Failed to download archive from: {$url}");
+            }
+
+            if (file_put_contents($archivePath, $archive) === false) {
+                throw new RuntimeException("Failed to write archive to: {$archivePath}");
+            }
+
             $this->fileExtractor->extractArchive($archivePath, $destination, $platform, $extension);
         } finally {
-            @unlink($archivePath);
+            if (file_exists($archivePath)) {
+                $handle = fopen($archivePath, 'r+');
+                if ($handle !== false) {
+                    ftruncate($handle, 0);
+                    fclose($handle);
+                }
+                @unlink($archivePath);
+            }
         }
     }
 

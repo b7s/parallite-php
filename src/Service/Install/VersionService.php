@@ -11,6 +11,14 @@ final class VersionService
 {
     private BinaryResolverService $binaryResolver;
 
+    private ?string $cachedVersion = null;
+
+    private ?string $cachedBinaryPath = null;
+
+    private int $cacheTime = 0;
+
+    private const CACHE_TTL = 300;
+
     public function __construct(BinaryResolverService $binaryResolver)
     {
         $this->binaryResolver = $binaryResolver;
@@ -24,6 +32,12 @@ final class VersionService
             return null;
         }
 
+        if ($binPath === $cachedBinaryPath = $this->cachedBinaryPath) {
+            if ((time() - $this->cacheTime) < self::CACHE_TTL) {
+                return $this->cachedVersion;
+            }
+        }
+
         if (! file_exists($binPath)) {
             return null;
         }
@@ -34,13 +48,24 @@ final class VersionService
             return null;
         }
 
-        // Extract version from output
         $matchResult = preg_match('/v?(\d+\.\d+\.\d+)/', $output, $matches);
         if ($matchResult === 1) {
-            return $matches[1];
+            $this->cachedVersion = $matches[1];
+        } else {
+            $this->cachedVersion = 'unknown';
         }
 
-        return 'unknown';
+        $this->cachedBinaryPath = $binPath;
+        $this->cacheTime = time();
+
+        return $this->cachedVersion;
+    }
+
+    public function clearCache(): void
+    {
+        $this->cachedVersion = null;
+        $this->cachedBinaryPath = null;
+        $this->cacheTime = 0;
     }
 
     public function isSameMajorVersion(string $version1, string $version2): bool
