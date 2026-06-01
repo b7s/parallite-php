@@ -3,20 +3,20 @@
 declare(strict_types=1);
 
 /**
- * Performance Benchmark - Using Daemon Benchmark Data
+ * Performance Benchmark - Using Fork Benchmark Data
  *
  * This example demonstrates:
- * - Collecting benchmark data from the Parallite daemon
+ * - Collecting benchmark data from forked child processes
  * - Analyzing execution time, memory, and CPU usage per task
  * - Comparing performance across different workload types
- * - Understanding memory behavior in persistent workers
+ * - Understanding memory behavior in forked processes
  */
 
 require __DIR__.'/../vendor/autoload.php';
 
-echo "🎯 === Performance Benchmark ===\n\n";
-echo "📊 This benchmark collects performance data from the Parallite daemon.\n";
-echo "⚡ Each task is measured for execution time, memory usage, and CPU time.\n\n";
+echo "=== Performance Benchmark ===\n\n";
+echo "This benchmark collects performance data from forked child processes.\n";
+echo "Each task is measured for execution time, memory usage, and CPU time.\n\n";
 
 $timeStart = microtime(true);
 
@@ -179,10 +179,9 @@ echo "   💻 CPU time shows actual CPU usage (can be < execution time for I/O)\
 echo "   💾 Memory delta may be zero due to PHP's automatic cleanup\n";
 echo "   📈 Memory peak captures maximum usage during task execution\n\n";
 
-echo "💡 Note:\n";
-echo "   ⚠️  Memory metrics may show zero for tasks where PHP automatically\n";
-echo "   🔄 frees memory. This is normal behavior in persistent workers.\n";
-echo "   📖 See README.md 'Understanding Memory Metrics' for details.\n\n";
+echo "Note:\n";
+echo " Memory metrics may show zero for tasks where PHP automatically\n";
+echo " frees memory. This is normal behavior in forked processes.\n\n";
 
 if ($totalDuration < 5) {
     echo "✅ Benchmark completed in under 5 seconds!\n";

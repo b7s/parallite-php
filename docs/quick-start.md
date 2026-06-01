@@ -1,6 +1,6 @@
 # Quick Start
 
-Parallite exposes global helpers so you can start executing closures in parallel immediately. After requiring Composer's autoloader, use `async()` and `await()`—no extra bootstrapping needed.
+Parallite exposes global helpers so you can start executing closures in parallel immediately. After requiring Composer's autoloader, use `async()` and `await()` — no extra bootstrapping needed.
 
 ## Basic Usage
 

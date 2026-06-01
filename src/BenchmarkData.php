@@ -8,7 +8,7 @@ use function is_numeric;
 use function sprintf;
 
 /**
- * Benchmark data returned by Parallite daemon
+ * Benchmark data captured in child process via pcntl_fork
  *
  * Contains performance metrics about task execution including:
  * - Execution time

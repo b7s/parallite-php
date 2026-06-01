@@ -83,6 +83,7 @@ test('awaits empty array', function () {
 test('awaits array of promises with different return types', function () {
     $promises = [
         async(fn () => 42),
+        async(fn () => (10+5)*2),
         async(fn () => 'Hello'),
         async(fn () => ['key' => 'value']),
         async(fn () => true),
@@ -92,12 +93,13 @@ test('awaits array of promises with different return types', function () {
     $results = await($promises);
 
     expect($results)->toBeArray()
-        ->and($results)->toHaveCount(5)
+        ->and($results)->toHaveCount(6)
         ->and($results[0])->toBe(42)
-        ->and($results[1])->toBe('Hello')
-        ->and($results[2])->toBe(['key' => 'value'])
-        ->and($results[3])->toBe(true)
-        ->and($results[4])->toBe(null);
+        ->and($results[1])->toBe(30)
+        ->and($results[2])->toBe('Hello')
+        ->and($results[3])->toBe(['key' => 'value'])
+        ->and($results[4])->toBe(true)
+        ->and($results[5])->toBe(null);
 });
 
 test('executes promises in parallel when using array', function () {

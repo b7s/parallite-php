@@ -1,168 +1,80 @@
 # Troubleshooting
 
-Common issues and solutions when working with Parallite. You can use `pd()` inside `async()` calls, it will throw an exception with the dump data.
+Common issues and solutions when working with Parallite. Use `pd()` inside `async()` calls — it throws an exception with the dump data.
 
-## Binary Not Found
+## Fork Not Available
 
-**Problem:** The `parallite` binary is not available after installation.
-
-**Solution:**
-
-```bash
-php vendor/parallite/parallite-php/bin/parallite-install
-```
-
-Or add automatic installation to your `composer.json`:
-
-```json
-{
-  "scripts": {
-    "post-install-cmd": [
-      "@php vendor/parallite/parallite-php/bin/parallite-install"
-    ]
-  }
-}
-```
-
-See more at [Installation Guide](installation.md).
-
-## Daemon Connection Failed
-
-**Problem:** Cannot connect to the Parallite daemon.
+**Problem:** Tasks run sequentially instead of in parallel.
 
 **Diagnosis:**
 
 ```bash
-# Check if daemon is running
-ps aux | grep parallite
-
-# Check socket file exists
-ls -la /tmp/parallite.sock
+php -m | grep -E 'pcntl|posix'
 ```
 
 **Solution:**
 
-Start the daemon manually (the binary is auto-resolved from the latest installed version):
+Install the required extensions:
 
 ```bash
-# The binary path is managed automatically
-# It's located at vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}
-./vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version} --socket=/tmp/parallite.sock
+# Ubuntu/Debian
+sudo apt-get install php-pcntl php-posix
+
+# macOS (Homebrew PHP — usually included by default)
+# No action needed
 ```
 
-Or use automatic daemon management:
+Check with `ParalliteClient::isForkMode()`:
 
 ```php
 use Parallite\ParalliteClient;
 
-$client = new ParalliteClient(autoManageDaemon: true);
+$client = new ParalliteClient();
+echo $client->isForkMode() ? 'Fork mode' : 'Sequential mode';
 ```
 
-## Permission Denied
+## Capturing `$this` in Closures
 
-**Problem:** Cannot execute the Parallite binary.
+**Problem:** Forked process copies the entire parent object when `$this` is captured.
+
+**Impact:** Large memory usage in child processes, potentially hitting `memory_limit`.
 
 **Solution:**
 
-The installer automatically sets the correct permissions. If you still have issues, the binary is located at:
-
-```bash
-# Find and make executable (Unix/Linux/macOS)
-chmod +x vendor/parallite/parallite-php/bin/parallite-bin/parallite-*
-```
-
-## Serialization Failures
-
-### Problem
-
-Closures fail to serialize with error:
-
-```
-Opis\Closure\ReflectionClosure::getCallableForm(): Return value must be of type ?callable, array returned
-```
-
-### Cause
-
-Passing closures that capture `$this` forces `opis/closure` to serialize the entire object instance, including
-non-serializable dependencies (PDO, CurlHandle, resource, sockets, Laravel Models, Collections, etc).
-
-### Impact
-
-Workers cannot deserialize the closure payload, causing all parallel tasks using those closures to fail before
-execution.
-
-### Solution
-
-**Option 1: Detach context**
-
-Extract primitive values or move logic into static helpers:
+Extract primitive values before the closure:
 
 ```php
-// ❌ Bad - captures $this
+// Bad — captures $this (copies entire object)
 $promises = [
     'customers' => async(fn () => $this->getCustomerStatistics()),
 ];
 
-// ✅ Good - unbound closure
+// Good — unbound closure
 $promises = [
     'customers' => async(function () {
         return [
             'total' => Customer::query()->count(),
             'with_orders' => Customer::query()->has('orders')->count(),
-            'without_orders' => Customer::query()->doesntHave('orders')->count(),
         ];
     }),
 ];
 
-// ❌ Bad - captures $this
-async(function() {
-    return $this->service->doSomething();
-});
-
-//or... ✅ Good - explicitly inject what you need
+// Good — explicitly inject what you need
 $service = $this->service;
-async(function() use ($service) {
+async(function () use ($service) {
     return $service->doSomething();
 });
-```
-
-**Option 2: Use static methods**
-
-```php
-// ✅ Good - static method
-$promises = [
-    'customers' => async(fn () => self::doSomething()),
-];
 ```
 
 ### Key Rules
 
 - **Never capture `$this`** directly in closures passed to `async()`
 - **Prefer static/service methods** when shared state is required
-- **Only serialize primitives** (scalars, arrays)
-- **Laravel users:** Convert Eloquent results with `->toArray()` or `->all()`
-
-## Timeout Errors
-
-**Problem:** Tasks are timing out before completion.
-
-**Solution:**
-
-Increase the timeout in `parallite.json`:
-
-```json
-{
-  "go_overrides": {
-    "timeout_ms": 900000
-  }
-}
-```
-
-Default is 15 minutes (900000ms). Adjust based on your workload.
+- **Only inject primitives** (scalars, arrays) via `use`
 
 ## Memory Issues
 
-**Problem:** Workers running out of memory.
+**Problem:** Forked processes running out of memory.
 
 **Diagnosis:**
 
@@ -180,12 +92,12 @@ echo "Memory peak: {$benchmark->memoryPeakMb}MB\n";
 
 - Break large tasks into smaller chunks
 - Process data in batches
-- Use generators for large datasets
 - Increase PHP memory limit if needed
+- Avoid capturing `$this` (see above)
 
-## Worker Process Crashes
+## Child Process Crashes
 
-**Problem:** Worker processes die unexpectedly.
+**Problem:** Child processes die unexpectedly.
 
 **Common causes:**
 
@@ -195,7 +107,7 @@ echo "Memory peak: {$benchmark->memoryPeakMb}MB\n";
 
 **Solution:**
 
-Check worker logs and add error handling:
+Add error handling inside the closure:
 
 ```php
 $promise = async(function () {
@@ -207,17 +119,30 @@ $promise = async(function () {
 });
 ```
 
-## Laravel Integration Issues
+## Temp File Issues
 
-**Problem:** Laravel application not available in workers.
+**Problem:** Error reading fork result file.
+
+**Cause:** The temp directory may not be writable, or disk is full.
+
+**Solution:**
+
+```bash
+# Check temp directory is writable
+php -r "echo sys_get_temp_dir() . PHP_EOL;"
+ls -la /tmp
+
+# Check disk space
+df -h /tmp
+```
+
+## Laravel Integration
+
+**Problem:** Laravel application not available in forked processes.
 
 **Solution:**
 
 Create `bootstrap/parallite.php`:
-
-- Loads the Composer autoloader
-- Bootstraps the Laravel application using the Console Kernel
-- Makes the Laravel application available without executing HTTP lifecycle
 
 ```php
 <?php
@@ -240,35 +165,13 @@ Then add to `parallite.json`:
 
 ```json
 {
-  "php_includes": [
-    "bootstrap/parallite.php"
-  ]
+    "php_includes": [
+        "bootstrap/parallite.php"
+    ]
 }
 ```
 
-**Important:** Do not use the HTTP kernel. This caused the PHP worker process
-to die prematurely before sending responses back to the Go daemon.
-
-_(Maybe other frameworks have a similar solution)_
-
-## Extension Not Loaded
-
-**Problem:** Missing required PHP extensions.
-
-**Solution:**
-
-Install required extensions:
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install php-msgpack php-sockets php-zip
-
-# macOS (Homebrew)
-pecl install msgpack
-
-# Verify installation
-php -m | grep -E 'msgpack|sockets|zip'
-```
+**Important:** Do not use the HTTP kernel. The HTTP request lifecycle termination will cause issues in forked processes.
 
 ## Still Having Issues?
 

@@ -5,102 +5,38 @@ declare(strict_types=1);
 namespace Parallite;
 
 use Closure;
-use Parallite\Service\Parallite\ConfigService;
-use Parallite\Service\Parallite\DaemonService;
-use Parallite\Service\Parallite\SocketService;
-use Parallite\Service\Parallite\TaskService;
 use RuntimeException;
-use Socket;
 use Throwable;
 
-/**
- * Parallite Client - Standalone PHP Client for Parallite Daemon
- *
- * This class provides a simple interface to communicate with Parallite daemon
- * and execute PHP closures in parallel.
- *
- * Usage:
- * ```php
- * use Parallite\ParalliteClient;
- *
- * // Option 1: Automatic daemon management (recommended)
- * $client = new ParalliteClient(autoManageDaemon: true);
- *
- * // Option 2: Manual daemon management (you start daemon yourself)
- * $client = new ParalliteClient('/tmp/parallite-custom.sock', autoManageDaemon: false);
- *
- * // Submit tasks
- * $future1 = $client->async(fn() => sleep(1) && 'Task 1');
- * $future2 = $client->async(fn() => sleep(2) && 'Task 2');
- *
- * // Await results
- * $result1 = $client->await($future1);
- * $result2 = $client->await($future2);
- *
- * // Daemon is automatically stopped on script end if autoManageDaemon=true
- * ```
- *
- * Required dependencies:
- * - PHP 8.2+
- * - opis/closure
- * - ext-sockets
- *
- * Configuration (parallite.json in project root):
- * - php_includes: Files loaded by worker processes
- * - go_overrides: Daemon configuration (timeout, workers, etc)
- */
 class ParalliteClient
 {
-    private string $socketPath;
-
-    private bool $autoManageDaemon;
+    private ?ForkExecutor $executor = null;
 
     private bool $enableBenchmark;
 
-    private ConfigService $configService;
-
-    private DaemonService $daemonService;
-
-    private SocketService $socketService;
-
-    private TaskService $taskService;
+    private bool $forkMode;
 
     /**
-     * Create a new Parallite client
-     *
-     * @param  string  $socketPath  Path to socket (Unix: /tmp/file.sock, Windows: \\.\pipe\name)
-     * @param  bool  $autoManageDaemon  If true, automatically starts/stops daemon
-     * @param  string|null  $projectRoot  Project root directory (auto-detected if null)
      * @param  bool  $enableBenchmark  If true, includes benchmark data in responses
+     * @param  bool  $useFork  If true and pcntl available, use fork mode (default: true)
      */
     public function __construct(
-        string $socketPath = '',
-        bool $autoManageDaemon = true,
-        ?string $projectRoot = null,
-        bool $enableBenchmark = false
+        bool $enableBenchmark = false,
+        bool $useFork = true,
     ) {
-        $this->socketPath = $socketPath !== '' ? $socketPath : ConfigService::getDefaultSocketPath();
-        $this->autoManageDaemon = $autoManageDaemon;
         $this->enableBenchmark = $enableBenchmark;
+        $this->forkMode = $useFork && ForkExecutor::isAvailable();
 
-        $this->configService = new ConfigService($projectRoot);
-        $this->daemonService = new DaemonService($this->socketPath, $this->configService);
-        $this->socketService = new SocketService($this->socketPath, $this->enableBenchmark);
-        $this->taskService = new TaskService($this->socketService);
-
-        if ($this->autoManageDaemon) {
-            $this->daemonService->ensureDaemonRunning();
-            register_shutdown_function([$this, 'stopDaemon']);
+        if ($this->forkMode) {
+            $this->executor = new ForkExecutor;
         }
     }
 
     /**
-     * Create a Promise for chainable async execution
-     *
      * @template TReturn
      *
-     * @param  Closure(): TReturn  $closure  The closure to execute
-     * @return Promise<TReturn> Promise that supports then/catch/finally chaining
+     * @param  Closure(): TReturn  $closure
+     * @return Promise<TReturn>
      */
     public function promise(Closure $closure): Promise
     {
@@ -110,35 +46,32 @@ class ParalliteClient
     /**
      * Submit a task for parallel execution
      *
-     * This method sends the task to Parallite daemon and returns a future
-     * that can be awaited later. The socket is kept open to allow parallel execution.
-     *
      * @param  Closure  $closure  The closure to execute
-     * @return array{socket: Socket, task_id: string} Future containing socket and task_id
+     * @return array{pid: int, temp_file: string} Future handle for fork mode
      *
-     * @throws RuntimeException If connection or send fails
+     * @throws RuntimeException
      */
     public function async(Closure $closure): array
     {
-        return $this->socketService->submitTask($closure);
+        if ($this->executor !== null) {
+            return $this->executor->fork($closure, $this->enableBenchmark);
+        }
+
+        return $this->sequentialAsync($closure);
     }
 
     /**
      * Await the result of a previously submitted task
      *
-     * This method reads the response from the open socket and returns the result.
-     * The socket is automatically closed after reading.
-     * If the future parameter is passed by reference, benchmark data will be stored in it.
-     *
      * @template TReturn
      *
-     * @param  array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null  $future  The future returned by async() or a Promise
+     * @param  array{pid: int, temp_file: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null  $future  The future returned by async() or a Promise
      *
-     * @param-out array{socket: Socket|null, task_id: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null $future
+     * @param-out array{pid: int, temp_file: string, benchmark?: array<string, mixed>}|Promise<TReturn>|null $future
      *
      * @return mixed The result of the task execution
      *
-     * @throws RuntimeException|Throwable If reading fails or task failed
+     * @throws RuntimeException|Throwable
      */
     public function await(array|Promise|null &$future = null): mixed
     {
@@ -146,96 +79,111 @@ class ParalliteClient
             return $future->resolve();
         }
 
-        if (! is_array($future) || ! isset($future['socket'])) {
-            throw new RuntimeException('No future or socket provided');
+        if (! is_array($future) || ! isset($future['pid'])) {
+            throw new RuntimeException('No future provided');
         }
 
-        return $this->socketService->awaitTask($future);
+        if ($this->executor !== null) {
+            return $this->executor->awaitOne($future);
+        }
+
+        return $future['result'] ?? null;
     }
 
-    /**
-     * Enable benchmark mode
-     *
-     * When enabled, task responses will include benchmark data with:
-     * - execution_time_ms: Task execution time in milliseconds
-     * - memory_delta_mb: Memory change during task execution (MB)
-     * - memory_peak_mb: Peak memory usage during task (MB)
-     * - cpu_time_ms: Total CPU time (user + system) in milliseconds
-     */
     public function enableBenchmark(): self
     {
         $this->enableBenchmark = true;
-        $this->socketService = new SocketService($this->socketPath, $this->enableBenchmark);
-        $this->taskService = new TaskService($this->socketService);
 
         return $this;
     }
 
-    /**
-     * Disable benchmark mode
-     */
     public function disableBenchmark(): self
     {
         $this->enableBenchmark = false;
-        $this->socketService = new SocketService($this->socketPath, $this->enableBenchmark);
-        $this->taskService = new TaskService($this->socketService);
 
         return $this;
     }
 
-    /**
-     * Check if benchmark mode is enabled
-     */
     public function isBenchmarkEnabled(): bool
     {
         return $this->enableBenchmark;
     }
 
+    public function isForkMode(): bool
+    {
+        return $this->forkMode;
+    }
+
     /**
      * Await multiple closures in parallel
      *
-     * This is a convenience method that combines async() and await()
-     * for multiple tasks, similar to Promise.all() in JavaScript.
-     *
      * @param  array<Closure>  $closures  Array of closures to execute
      * @return array<mixed> Array of results in the same order
+     *
+     * @throws Throwable
      */
     public function awaitAll(array $closures): array
     {
-        return $this->taskService->awaitAll($closures);
+        if ($this->executor !== null) {
+            $handles = [];
+            foreach ($closures as $closure) {
+                $handles[] = $this->executor->fork($closure, $this->enableBenchmark);
+            }
+
+            return $this->executor->awaitAll($handles);
+        }
+
+        $results = [];
+        foreach ($closures as $closure) {
+            $results[] = $closure();
+        }
+
+        return $results;
     }
 
     /**
      * Await multiple promises/futures in parallel
      *
-     * Accepts an array of Promise objects or futures and returns their results.
-     * Non-promise values in the array pass through unchanged.
-     *
-     * @param  array<Promise|array{socket: Socket|null, task_id: string}|mixed>  $promises  Array of promises, futures, or mixed values
+     * @param  array<Promise|array{pid: int, temp_file: string}|mixed>  $promises  Array of promises, futures, or mixed values
      * @return array<mixed> Array of results (promises resolved, other values pass through)
      *
      * @throws Throwable
      */
     public function awaitMultiple(array $promises): array
     {
-        return $this->taskService->awaitMultiple($promises);
+        $results = [];
+
+        foreach ($promises as $key => $p) {
+            if ($p instanceof Promise) {
+                $results[$key] = $p->resolve();
+            } elseif (is_array($p) && isset($p['pid'])) {
+                /** @var array{pid: int, temp_file: string, benchmark?: array<string, mixed>} $p */
+                if ($this->executor !== null) {
+                    $results[$key] = $this->executor->awaitOne($p);
+                } else {
+                    $results[$key] = $p['result'] ?? null;
+                }
+            } else {
+                $results[$key] = $p;
+            }
+        }
+
+        return $results;
     }
 
     /**
-     * Get default socket path for the current platform
+     * Sequential fallback for async when pcntl is not available
      *
-     * @return string Socket path (Unix socket or Windows named pipe)
+     * @return array{pid: int, temp_file: string, result: mixed}
      */
-    public static function getDefaultSocketPath(): string
+    private function sequentialAsync(Closure $closure): array
     {
-        return ConfigService::getDefaultSocketPath();
-    }
+        try {
+            $result = $closure();
 
-    /**
-     * Stop the daemon process
-     */
-    public function stopDaemon(): void
-    {
-        $this->daemonService->stopDaemon();
+            return ['pid' => 0, 'temp_file' => '', 'result' => $result];
+        } catch (Throwable $e) {
+            return ['pid' => 0, 'temp_file' => '', 'result' => new RuntimeException($e->getMessage())];
+        }
     }
 }

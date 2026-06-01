@@ -1,0 +1,84 @@
+{
+    "security": {
+        "findings": 8,
+        "critical": 0,
+        "advisories": null,
+        "rules": {
+            "hardcoded_secrets": true,
+            "sql_injection": true,
+            "command_injection": true,
+            "csrf_protection": true,
+            "path_traversal": true,
+            "insecure_deserialization": true,
+            "ssrf": true,
+            "tls_verification": true,
+            "insecure_rng": true,
+            "gitignore_sensitive": true,
+            "package_freshness": false,
+            "weak_cryptography": true,
+            "cors_config": true,
+            "npm_audit": true
+        },
+        "fixers": [],
+        "released_days": 3
+    },
+    "style": {
+        "violations": 0
+    },
+    "static_analysis": {
+        "errors": 1
+    },
+    "coverage": {
+        "percentage": null
+    },
+    "duplication": {
+        "percentage": 0.5,
+        "clones": 2,
+        "min_lines": 3,
+        "min_tokens": 30
+    },
+    "file_size": {
+        "over_limit": 0,
+        "max_lines": 1000
+    },
+    "complexity": {
+        "max_ccn": 0,
+        "violations": 0,
+        "warnings": 0
+    },
+    "performance": {
+        "violations": 0,
+        "rules": {
+            "global_namespace_import": true,
+            "no_unused_imports": true,
+            "fully_qualified_strict_types": true,
+            "lambda_not_used_import": true,
+            "native_function_invocation": true,
+            "no_redundant_readonly_property": true,
+            "static_lambda": true,
+            "array_push": true,
+            "ereg_to_preg": true,
+            "modernize_strpos": true,
+            "pow_to_exponentiation": true,
+            "random_api_migration": true,
+            "set_type_to_cast": true,
+            "autoload_optimization": true,
+            "condition_order": true
+        },
+        "fixers": {
+            "condition_order": false
+        }
+    },
+    "schema": "catraca/v1",
+    "updated_at": "2026-06-01T13:45:35+00:00",
+    "source_dirs": {
+        "paths": [
+            "src",
+            "app",
+            "lib"
+        ]
+    },
+    "parallel": {
+        "enabled": true
+    }
+}

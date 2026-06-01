@@ -1,95 +1,43 @@
 # Installation
 
-Parallite ships as a Composer package plus a lightweight Go daemon. Install the package, then install the binary.
+Parallite is a pure PHP library — no external binary, no daemon, no post-install scripts.
 
 ## Requirements
 
 - PHP 8.3+
-- ext-sockets
-- ext-pcntl
-- ext-zip
-- rybakit/msgpack
-- opis/closure
-- Composer 2+
+- ext-pcntl (built-in on Linux/macOS — enables fork mode)
+- ext-posix (built-in on Linux/macOS — enables fork mode)
 
-## Package
+## Install
 
 ```bash
 composer require parallite/parallite-php
 ```
 
-## Parallite Binary
+That's it. No binary to download, no daemon to start.
 
-After composer install, install the daemon orchestrator binary. Two options are available.
-
-### Option 1 · Automatic (Recommended)
-
-Add the install/update scripts to your `composer.json`:
-
-```json
-{
-  "scripts": {
-    "post-install-cmd": [
-      "@php vendor/parallite/parallite-php/bin/parallite-install"
-    ],
-    "post-update-cmd": [
-      "@php vendor/parallite/parallite-php/bin/parallite-update"
-    ]
-  }
-}
-```
-
-> See `composer.json.example` for a full example.
-
-Then run `composer install` or `composer update`. The binary is placed at
-`vendor/parallite/parallite-php/bin/parallite-bin/parallite-{version}` (or `.exe` on Windows).
-
-### Option 2 · One-Time Install
-
-Run the installer manually:
+## Verify
 
 ```bash
-php vendor/parallite/parallite-php/bin/parallite-install
+php -m | grep -E 'pcntl|posix'
 ```
 
-#### Flags
-
-- `--force` · reinstall even if the binary already exists
-- `--version=X.Y.Z` · install a specific release (`1.2.3` or `v1.2.3`)
-
-Examples:
+Both extensions should appear. If they don't, install them:
 
 ```bash
-php vendor/parallite/parallite-php/bin/parallite-install --force
-php vendor/parallite/parallite-php/bin/parallite-install --version=1.2.3
+# Ubuntu/Debian
+sudo apt-get install php-pcntl php-posix
+
+# macOS (Homebrew PHP — usually included by default)
+# No action needed
 ```
 
-### Updating the Binary
+## Platform Notes
 
-Use the update script:
+| Platform | Mode | Details |
+| --- | --- | --- |
+| Linux | Fork (parallel) | `ext-pcntl` and `ext-posix` are built-in |
+| macOS | Fork (parallel) | `ext-pcntl` and `ext-posix` are built-in |
+| Windows | Sequential | No `pcntl_fork` — closures run one after another |
 
-```bash
-php vendor/parallite/parallite-php/bin/parallite-update
-```
-
-#### Update Flags
-
-- `--version=X.Y.Z` · install a specific release directly
-
-Examples:
-
-```bash
-php vendor/parallite/parallite-php/bin/parallite-update --force
-php vendor/parallite/parallite-php/bin/parallite-update --version=1.2.3
-```
-
-## Requirements Explained
-
-- **PHP 8.3+**: The minimum PHP version required for all features to work correctly.
-- **ext-sockets**: Required for inter-process communication between PHP and the Go daemon.
-- **ext-pcntl**: Used for process control functions to manage child processes.
-- **ext-zip**: Required for handling zip archives during the installation and update process for Parallite Go binary,
-  from GitHub.
-- **rybakit/msgpack**: A pure PHP implementation of MessagePack for efficient data serialization.
-- **opis/closure**: Provides tools to serialize closures and anonymous functions.
-- **Composer 2+**: Required for dependency management and package installation.
+On Windows, Parallite automatically falls back to sequential execution. Your code works the same way, just without parallelism.

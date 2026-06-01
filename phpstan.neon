@@ -1,14 +1,10 @@
 includes:
-    - vendor/phpstan/phpstan-strict-rules/rules.neon
+- vendor/phpstan/phpstan-strict-rules/rules.neon
 
 parameters:
-    level: 9
-    paths:
-        - src
-    tmpDir: build/phpstan
-    reportUnmatchedIgnoredErrors: false
-    treatPhpDocTypesAsCertain: false
-    ignoreErrors:
-        - '#Strict comparison using === between Socket and false will always evaluate to false#'
-        - '#Parameter &\$future @param-out type of method.*SocketService::awaitTask\(\) expects#'
-        - '#Parameter &\$futures @param-out type of method.*SocketService::awaitAll\(\) expects#'
+  level: 9
+  paths:
+  - src
+  tmpDir: build/phpstan
+  reportUnmatchedIgnoredErrors: false
+  treatPhpDocTypesAsCertain: false

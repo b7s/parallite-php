@@ -2,223 +2,91 @@
 
 ## Overview
 
-Parallite uses **MessagePack** for serialization, which is efficient but has some limitations with complex PHP data
-structures. This guide explains how to handle complex data safely.
+Parallite uses `pcntl_fork` — forked child processes **inherit the parent's entire memory space**. This means closures have direct access to all variables from the parent scope without serialization. Results are written to a temp file as JSON.
 
-## ✅ No Data Loss!
+## What Changed (vs Daemon Architecture)
 
-**Good news!** With the improved Go daemon (v2.0+), the automatic normalization **preserves your data structure**:
+With the previous daemon + MessagePack architecture, complex data handling required careful normalization. With `pcntl_fork`:
 
-- ✅ **Non-sequential integer keys preserved**: `[1 => 'Alice', 5 => 'Bob', 10 => 'Charlie']`
-- ✅ **Mixed integer/string keys preserved**: `[0 => 'first', 'name' => 'test', 1 => 'second']`
-- ✅ **All array structures work as expected**
-
-### What Gets Normalized
-
-The DataNormalizerService only converts:
-
-1. **Objects with `toArray()`** → Arrays (e.g., Eloquent models)
-2. **stdClass objects** → Arrays
-3. **DateTime objects** → Structured arrays with timezone info
-4. **NaN/Infinity floats** → `null`
-5. **Resources** → Error (cannot be serialized)
-
-**Your array keys are safe!**
-
-## The Challenge
-
-MessagePack serialization can fail with:
-
-- **Mixed key types** (integer + string keys in same array)
-- **Non-sequential integer keys** (sparse arrays)
-- **Eloquent models** (contain database connections and circular references)
-- **Resources** (file handles, database connections)
-- **Very large nested structures**
-
-## Solutions Implemented
-
-### Automatic Normalization
-
-The worker now **automatically normalizes** all return values before serialization:
-
-```php
-// Just return your data - normalization happens automatically
-$result = await(async(function () {
-    return [
-        'users' => User::query()->limit(100)->get(), // Eloquent collection
-        'stats' => ['total' => 100, 'active' => 75],
-    ];
-}));
-```
+- **No closure serialization** — closures run directly in the forked process
+- **No MessagePack constraints** — results are JSON-encoded
+- **No payload size limits** — only limited by temp file disk space and `memory_limit`
 
 ## Best Practices
 
-### ✅ Arrays Work Naturally
+### ✅ Closures Inherit Parent Scope
 
-You can now use any array structure without worrying:
-
-```php
-// All of these work perfectly!
-
-// Sequential arrays
-return [0 => 'a', 1 => 'b', 2 => 'c'];
-
-// Non-sequential integer keys
-return [1 => 'Alice', 5 => 'Bob', 10 => 'Charlie'];
-
-// Mixed integer/string keys
-return [0 => 'first', 'name' => 'test', 1 => 'second'];
-
-// Associative arrays
-return ['name' => 'Alice', 'age' => 30];
-```
-
-### ✅ DO: Convert Objects to Arrays
+Forked processes copy the parent's memory, so `use` variables work naturally:
 
 ```php
-// Good - convert Eloquent models to arrays
-return [
-    'users' => User::query()->get()->map->toArray(),
-];
+$config = ['db' => 'postgres', 'timeout' => 30];
+
+$result = await(async(function () use ($config) {
+    // $config is available — no serialization needed
+    return $config['db'];
+}));
 ```
 
-### ❌ DON'T: Return Raw Eloquent Collections
+### ✅ Return JSON-Serializable Values
+
+Child processes write results as JSON via `json_encode()`. Return values must be JSON-serializable:
 
 ```php
-// Bad - Eloquent collections contain non-serializable data
-return User::query()->get(); // May cause issues
+// Good — arrays, scalars, nested structures
+return ['name' => 'Alice', 'scores' => [95, 87, 91]];
+
+// Good — sequential arrays
+return ['a', 'b', 'c'];
 ```
 
-### ✅ DO: Limit Data Size
+### ❌ Don't Return Non-JSON-Serializable Values
 
 ```php
-// Good - limit query results
-return [
-    'top_products' => Product::query()
-        ->orderBy('sales', 'desc')
-        ->limit(1000)
-        ->get()
-        ->toArray(),
-];
+// Bad — resources cannot be JSON-encoded
+return fopen('/tmp/file', 'r');
+
+// Bad — objects without JsonSerializable
+return new SomeObject();
 ```
 
-### ❌ DON'T: Return Huge Datasets
+### ✅ Convert Objects to Arrays
 
 ```php
-// Bad - may exceed payload limits
-return Product::query()->get(); // Could be millions of records
+// Good — convert Eloquent models to arrays
+return User::query()->limit(100)->get()->toArray();
+
+// Bad — raw Eloquent collections may not serialize cleanly
+return User::query()->get();
 ```
 
-## How DataNormalizer Works
+### ✅ Limit Data Size
 
-The `DataNormalizerService` class:
+Large results write to temp files and are read back by the parent. Keep results reasonable:
 
-1. **Detects problematic structures**
-    - Mixed key types
-    - Non-sequential integer keys
-    - Objects with `toArray()` method
-
-2. **Converts to MessagePack-safe format**
-    - Converts mixed keys to all strings
-    - Calls `toArray()` on objects
-    - Handles DateTime objects specially
-
-3. **Prevents infinite recursion**
-    - Max depth limit (default: 100 levels)
-    - Throws exception if exceeded
-
-## Configuration
-
-### Increase Payload Size Limit
-
-In `parallite.json`:
-
-```json
-{
-  "go_overrides": {
-    "max_payload_bytes": 52428800
-  }
-}
+```php
+// Good — limit query results
+return Product::query()
+    ->orderBy('sales', 'desc')
+    ->limit(1000)
+    ->get()
+    ->toArray();
 ```
 
-- Default: 10MB (10485760 bytes)
-- Max recommended: 50MB (52428800 bytes)
+## Key Differences from Daemon Mode
 
-### Enable Debug Logs
-
-```json
-{
-  "worker_debug_logs": true,
-  "debug_logs": true
-}
-```
-
-This helps diagnose serialization issues.
-
-## Troubleshooting
-
-### Error: "msgpack: invalid code"
-
-**Cause**: Data structure incompatible with MessagePack
-
-**Solution**:
-
-1. Use `normalize_data()` explicitly
-2. Check for mixed key types
-3. Ensure no resources in return value
-
-### Error: "Maximum recursion depth exceeded"
-
-**Cause**: Circular references or very deep nesting
-
-**Solution**:
-
-1. Flatten your data structure
-2. Increase max depth: `normalize_data($data, 20)`
-3. Break circular references
-
-### Error: "Failed to pack response"
-
-**Cause**: Payload too large
-
-**Solution**:
-
-1. Use `truncate_array()` to limit size
-2. Increase `max_payload_bytes` in config
-3. Return only essential data
-
-## Examples
-
-See `/examples/complex-data.php` for complete working examples:
-
-```bash
-php examples/complex-data.php
-```
-
-## Architecture Note
-
-**Why MessagePack?**
-
-Parallite uses MessagePack because:
-
-- The Go daemon needs a binary format for efficiency
-- MessagePack is supported in both PHP and Go
-- It's faster and more compact than JSON
-- Go's `github.com/vmihailenco/msgpack/v5` library is mature
-
-**Can we use JSON instead?**
-
-Not easily - the Go daemon would need to be modified to support multiple serialization formats. MessagePack is the best
-balance of performance and compatibility.
+| Aspect | Daemon (old) | Fork (current) |
+| --- | --- | --- |
+| Closure transfer | Serialized via opis/closure | Inherited via fork — no serialization |
+| Result transport | MessagePack over socket | JSON in temp file |
+| Data size limit | ~10MB (configurable) | Limited by disk/memory only |
+| Key types | Required normalization | JSON handles all key types natively |
+| Objects | Must implement `toArray()` | Must be JSON-serializable |
 
 ## Summary
 
-- ✅ Worker automatically normalizes return values
-- ✅ Use `normalize_data()` for manual control
-- ✅ Use `truncate_array()` for large datasets
-- ✅ Convert objects to arrays
-- ✅ Use sequential arrays when possible
-- ✅ Limit data size in queries
-- ❌ Avoid mixed key types
-- ❌ Avoid returning raw Eloquent collections
-- ❌ Avoid huge datasets without truncation
+- ✅ Closures inherit parent scope — no `opis/closure` needed
+- ✅ Return JSON-serializable values (arrays, scalars, nested structures)
+- ✅ Convert Eloquent models with `->toArray()`
+- ✅ Limit large query results
+- ❌ Don't return resources or non-serializable objects
+- ❌ Don't capture `$this` in closures (causes the entire object to be copied into the fork)

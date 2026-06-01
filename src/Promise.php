@@ -6,7 +6,6 @@ namespace Parallite;
 
 use Closure;
 use RuntimeException;
-use Socket;
 use Throwable;
 
 /**
@@ -17,7 +16,7 @@ use Throwable;
 final class Promise
 {
     /**
-     * @var array{socket: Socket, task_id: string, benchmark?: array<string, mixed>}|null
+     * @var array{pid: int, temp_file: string, benchmark?: array<string, mixed>}|null
      */
     private ?array $future = null;
 
@@ -34,17 +33,14 @@ final class Promise
     public function __construct(
         private readonly ParalliteClient $client,
         private readonly Closure $callback,
-        bool $eager = true
+        bool $eager = true,
     ) {
-        // Start execution immediately for true parallelism
         if ($eager) {
             $this->start();
         }
     }
 
     /**
-     * Allow promise to be invoked directly
-     *
      * @return TReturn
      */
     public function __invoke(): mixed
@@ -55,7 +51,7 @@ final class Promise
     /**
      * Start the async execution if not already started
      *
-     * @return array{socket: Socket, task_id: string}
+     * @return array{pid: int, temp_file: string}
      */
     public function start(): array
     {
@@ -71,7 +67,7 @@ final class Promise
     /**
      * Get the future (for backward compatibility with await())
      *
-     * @return array{socket: Socket, task_id: string}
+     * @return array{pid: int, temp_file: string}
      */
     public function getFuture(): array
     {
@@ -80,12 +76,6 @@ final class Promise
 
     /**
      * Resolve the promise and apply all chained callbacks
-     *
-     * Follows JavaScript Promise semantics:
-     * - then() handlers run sequentially on success
-     * - On error, skip to next catch() handler
-     * - After catch() handles error, continue with subsequent then() handlers
-     * - finally() handlers always run at the end
      *
      * @throws Throwable
      */
@@ -98,7 +88,6 @@ final class Promise
         $isError = false;
 
         try {
-            // Pass future by reference to allow await() to modify it
             $futureRef = &$this->future;
             $result = $this->client->await($futureRef);
 
@@ -110,7 +99,6 @@ final class Promise
             $isError = true;
         }
 
-        // Process handlers in registration order
         foreach ($this->handlers as $handler) {
             if ($handler['type'] === 'then') {
                 if (! $isError) {
@@ -133,14 +121,12 @@ final class Promise
             }
         }
 
-        // Apply finally callbacks (always run, don't modify result)
         foreach ($this->handlers as $handler) {
             if ($handler['type'] === 'finally') {
                 $handler['callback']();
             }
         }
 
-        // Throw if still in error state
         if ($isError) {
             if (! ($exception instanceof Throwable)) {
                 throw new RuntimeException('Promise rejected without exception instance.');
@@ -195,11 +181,6 @@ final class Promise
         return $this;
     }
 
-    /**
-     * Get benchmark data if available
-     *
-     * Returns null if benchmark mode was not enabled or if promise hasn't been resolved yet.
-     */
     public function getBenchmark(): ?BenchmarkData
     {
         return $this->benchmark;

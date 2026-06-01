@@ -2,75 +2,46 @@
 
 <img src="docs/art/parallite-logo.webp" alt="Parallite Logo" width="128">
 
-# Parallite {PHP Client}
+# Parallite PHP
 
 [![Latest Version](https://img.shields.io/packagist/v/parallite/parallite-php.svg?style=flat-square)](https://packagist.org/packages/parallite/parallite-php)
 [![PHP Version](https://img.shields.io/packagist/php-v/parallite/parallite-php.svg?style=flat-square)](https://packagist.org/packages/parallite/parallite-php)
 [![License](https://img.shields.io/packagist/l/parallite/parallite-php.svg?style=flat-square)](https://packagist.org/packages/parallite/parallite-php)
 
-**Execute PHP closures in true parallel** - A standalone PHP client for [Parallite](https://github.com/b7s/parallite),
-enabling real parallel execution of PHP code without the limitations of traditional PHP concurrency.
+**Execute PHP closures in true parallel** — native `pcntl_fork` with zero dependencies, no daemon, no binary, no serialization.
 
 </div>
 
 ---
 
-## ✨ Features
+## Features
 
-- 🚀 **True Parallel Execution** - Execute multiple PHP closures simultaneously
-- 🎯 **Simple async/await API** - Familiar Promise-like interface
-- 🔄 **Promise Chaining** - Chainable `then()`, `catch()`, and `finally()` methods
-- 🌍 **Cross-platform** - Works on Windows, Linux and macOS
-- ⏯️️ **Automatic Daemon Management** - Optional auto-start/stop of Parallite daemon
-- ⚡ **Binary MessagePack Transport** - Ultra-fast daemon communication (2-5x faster than JSON)
+- **True Parallel Execution** — `pcntl_fork` runs closures in separate processes simultaneously
+- **Zero Dependencies** — only PHP 8.3+ with `ext-pcntl` and `ext-posix` (built-in)
+- **No Daemon, No Binary** — no external process to install, start, or manage
+- **No Closure Serialization** — forked processes inherit parent memory; closures run as-is
+- **Simple async/await API** — familiar Promise-like interface with global helpers
+- **Promise Chaining** — chainable `then()`, `catch()`, and `finally()` methods
+- **Cross-platform** — fork mode on Linux/macOS, automatic sequential fallback on Windows
+- **Benchmark Mode** — optional per-task metrics (execution time, memory, CPU)
 
-## 📋 Requirements
+## Requirements
 
 - PHP 8.3+
-- ext-sockets
-- ext-zip
-- rybakit/msgpack
-- opis/closure
+- ext-pcntl (Linux/macOS — built-in, enables fork mode)
+- ext-posix (Linux/macOS — built-in, enables fork mode)
 
-> ⚠️ Important Notice: 
-> 
-> Passing closures that capture `$this` will cause opis/closure to serialize the entire object instance. This often includes non‑serializable dependencies (e.g., PDO, CurlHandle, resource, sockets, Laravel Models, Collections, etc) and may lead to errors.
-> 
-> 👉 Please review the [Troubleshooting](docs/troubleshooting.md#serialization-failures) page for guidance on how to avoid this issue and know more.
+> **Windows?** Parallite works on Windows in sequential fallback mode (no `pcntl_fork`). Parallel execution requires a Unix-like OS.
 
-## 📦 Installation
+## Installation
 
 ```bash
 composer require parallite/parallite-php
 ```
 
-Add the install/update scripts to your `composer.json`:
+That's it. No binary to download, no daemon to start, no post-install scripts.
 
-```json
-{
-  "scripts": {
-    "post-install-cmd": [
-      "@php vendor/parallite/parallite-php/bin/parallite-install"
-    ],
-    "post-update-cmd": [
-      "@php vendor/parallite/parallite-php/bin/parallite-update"
-    ]
-  }
-}
-```
-
-> See more about these scripts: [Installation Guide](docs/installation.md).
-
-After adding the scripts, run (to download Parallite binary):
-
-```bash
-composer install
-
-# or update
-composer update
-```
-
-## 🚀 Quick Start
+## Quick Start
 
 ```php
 <?php
@@ -103,30 +74,28 @@ $result = await(
         throw new Exception('Oops!');
     })->catch(fn($e) => 'Caught: ' . $e->getMessage())
 );
-echo $result; // Caught: Task failed: Oops!
+echo $result; // Caught: Oops!
 ```
 
-**That's it!** The daemon is automatically managed - no manual setup required!
+## Documentation
 
-## 📚 Documentation
+- **[Quick Start Guide](docs/quick-start.md)** — Get up and running in minutes
+- **[Installation](docs/installation.md)** — Requirements and setup
+- **[Configuration](docs/configuration.md)** — Benchmark mode and PHP includes
+- **[API Reference](docs/api-reference.md)** — Complete API documentation
+- **[Complex Data Handling](docs/complex-data-handling.md)** — How to handle complex data structures
+- **[Troubleshooting](docs/troubleshooting.md)** — Common issues and solutions
+- **[Examples](examples/)** — Real-world usage examples
 
-- **[Quick Start Guide](docs/quick-start.md)** - Get up and running in minutes
-- **[Installation](docs/installation.md)** - Detailed installation instructions
-- **[Configuration](docs/configuration.md)** - Customize daemon behavior and PHP includes
-- **[API Reference](docs/api-reference.md)** - Complete API documentation
-- **[Complex Data Handling](docs/complex-data-handling.md)** - How to handle complex data structures
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
-- **[Examples](examples/)** - Real-world usage examples
-
-## ⚡ Performance
+## Performance
 
 Parallite provides significant speedup for I/O-bound and CPU-bound tasks:
 
-| Tasks   | Sequential | Parallel | Speedup   |
+| Tasks | Sequential | Parallel | Speedup |
 | ------- | ---------- | -------- | --------- |
-| 3 × 1s  | 3.0s       | ~1.0s    | **3.0x**  |
-| 5 × 2s  | 10.0s      | ~2.0s    | **5.0x**  |
-| 10 × 1s | 10.0s      | ~1.0s    | **10.0x** |
+| 3 × 1s | 3.0s | ~1.0s | **3.0x** |
+| 5 × 2s | 10.0s | ~2.0s | **5.0x** |
+| 10 × 1s | 10.0s | ~1.0s | **10.0x** |
 
 ```
 Parallelism is beneficial when:
@@ -158,8 +127,8 @@ Project with + 20 thousand orders, simulating several heavy calculations and wit
 ```php
 // Fetch multiple APIs in parallel
 $promises = [
-    'users'    => async(fn() => file_get_contents('https://api.example.com/users')),
-    'posts'    => async(fn() => file_get_contents('https://api.example.com/posts')),
+    'users' => async(fn() => file_get_contents('https://api.example.com/users')),
+    'posts' => async(fn() => file_get_contents('https://api.example.com/posts')),
     'comments' => async(fn() => file_get_contents('https://api.example.com/comments')),
 ];
 
@@ -167,44 +136,42 @@ $data = await($promises);
 // 3x faster than sequential fetching!
 ```
 
-Run the real-world test suite (uses data available at https://jsonplaceholder.typicode.com):
+## Platform Support
 
-```bash
-RUN_REAL_WORLD_TESTS=1 vendor/bin/pest tests/Feature/RealWorldDataProcessingTest.php --no-coverage
-```
-
-## 🌐 Platform Support
-
-| Platform    | Status            | Notes                |
+| Platform | Status | Notes |
 | ----------- | ----------------- | -------------------- |
-| **Linux**   | ✅ Fully Supported | x86_64, ARM64        |
-| **macOS**   | ✅ Fully Supported | Intel, Apple Silicon |
-| **Windows** | ✅ Fully Supported | x86_64, ARM64        |
+| **Linux** | ✅ Fully Supported | Fork mode (parallel) |
+| **macOS** | ✅ Fully Supported | Fork mode (parallel) |
+| **Windows** | ⚠️ Sequential Mode | No `pcntl_fork` — runs closures sequentially |
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 Having issues? Check the **[Troubleshooting Guide](docs/troubleshooting.md)** for solutions.
 
-**Quick tip:** 
-- You can use `pd()` inside `async()` calls, it will throw an exception with the dump data.
-- Never capture `$this` in closures passed to `async()`. Use static methods or extract primitives instead.
+**Quick tip:** Use `pd()` inside `async()` calls — it throws an exception with the dump data.
 
-## 🤝 Contributing
+## How It Works
+
+Parallite uses `pcntl_fork()` to create child processes that inherit the parent's entire memory space. This means:
+
+1. **No closure serialization** — closures run directly in the forked process
+2. **No external daemon** — each `async()` call forks immediately
+3. **No startup overhead** — fork is near-instantaneous (~0.1ms)
+4. **Simple IPC** — child writes result to a temp file, parent reads it on `await()`
+
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Credits
+## Credits
 
-- **Parallite Daemon**: [b7s/parallite](https://github.com/b7s/parallite)
-- **Closure Serialization**: [opis/closure](https://github.com/opis/closure)
-- **MessagePack**: [rybakit/msgpack](https://github.com/rybakit/msgpack)
 - **Inspired by**: [Pokio](https://github.com/nunomaduro/pokio)
 
-## 📮 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/parallite/parallite-php/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/parallite/parallite-php/discussions)

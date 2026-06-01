@@ -1,17 +1,17 @@
 {
   "name": "parallite/parallite-php",
-  "description": "Standalone PHP client for Parallite - Execute PHP closures in true parallel",
+  "description": "Execute PHP closures in true parallel using pcntl_fork — zero dependencies",
   "type": "library",
   "keywords": [
     "parallel",
     "php",
-    "go",
-    "laravel",
     "async",
     "concurrency",
     "parallite",
     "closure",
-    "multiprocessing"
+    "multiprocessing",
+    "pcntl",
+    "fork"
   ],
   "license": "MIT",
   "authors": [
@@ -22,17 +22,16 @@
   ],
   "require": {
     "php": "^8.3",
-    "ext-sockets": "*",
-    "ext-zip": "*",
-    "opis/closure": "^4.3",
-    "rybakit/msgpack": "^0.9.1",
-    "ext-pcntl": "*"
+    "ext-pcntl": "*",
+    "ext-posix": "*"
   },
   "require-dev": {
+    "b7s/catraca": "^1.0",
     "laravel/pint": "^1.25",
     "pestphp/pest": "^4.0",
     "phpstan/phpstan": "^2.0",
-    "phpstan/phpstan-strict-rules": "^2.0"
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "systemsdk/phpcpd": "^8.3"
   },
   "autoload": {
     "psr-4": {
@@ -47,19 +46,7 @@
       "Tests\\": "tests/"
     }
   },
-  "bin": [
-    "bin/parallite-install",
-    "bin/parallite-update"
-  ],
   "scripts": {
-    "post-install-cmd": [
-      "@parallite:install"
-    ],
-    "post-update-cmd": [
-      "@parallite:update"
-    ],
-    "parallite:install": "php bin/parallite-install",
-    "parallite:update": "php bin/parallite-update",
     "test": [
       "@test:unit",
       "@test:types"
